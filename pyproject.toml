@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "repeat-neraca"
+version = "0.0.1"
+description = "Neraca air (water balance) of a KHG for RE-PEAT: physical model, synthetic testbed, and the earlier bucket-model experiments"
+requires-python = ">=3.11"
+dependencies = ["numpy", "scipy", "pydantic>=2", "pyyaml"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+benchmark = ["rasterio", "pandas"]
+# real KHG inputs (repeat_neraca.inputs) and the physical-model runner
+neraca = ["rasterio", "geopandas", "pandas", "pyproj", "shapely"]
+# the bucket-model experiments (repeat_neraca.bucket): forcing and Sentinel-1 reads come from repeat-common
+experiments = ["repeat-common", "rasterio", "geopandas", "pandas", "pyproj", "shapely", "matplotlib"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+repeat_neraca = ["testbed/data/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
