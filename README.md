@@ -1,34 +1,68 @@
 # repeat-neraca
 
-Neraca air (water balance) of a KHG for RE-PEAT (GitHub org Re-Peat-Project). Two things live here:
+Neraca air (water balance) of a KHG for RE-PEAT (GitHub org Re-Peat-Project). Method and plan: [docs/method-plan.md](docs/method-plan.md).
 
-| Package | What | Status |
+| Part | What | Status |
 |---|---|---|
-| `src/repeat_neraca/` | **Physical model**, no fitted parameters: KHG-level water table (`lumped.py`), 2D groundwater (`spatial.py`, solver in `testbed/groundwater.py`), parameter registry (`params.py`, `config/parameters.yaml`), a synthetic KHG testbed and the Urzainki et al. 2020 benchmark | the current model; see [docs/neraca-air.md](docs/neraca-air.md) |
-| `src/repeat_neraca/bucket/` | **Bucket-model experiments** fitted to SiTMAT stations, Sentinel-1, finer forcing, canal level | kept as a record; failed its spatial skill check on Kampar-Gaung. See [docs/bucket_experiments_README.md](docs/bucket_experiments_README.md) |
+| `balance.py` | **Climatic water balance per sub-KHG**, the method of the 2021 Kahayan-Sebangau study: `WB = P (1 - I) (1 - C) - ET` monthly, from Earth Engine rain and evapotranspiration (`repeat_common.fetch_gee_balance`). Gives `u_wb_mean` and `u_deficit_months` | the sub-KHG output |
+| `deficit.py` | **KHG deficit**: water the managed system supplies to hold the observed water table over the dry season, a mass balance on the SiTMAT stations | the KHG output |
+| `lumped.py`, `spatial.py` | **Physical model**, no fitted parameters: KHG-level water table and 2D groundwater; registry `params.py`, `src/repeat_neraca/parameters.yaml`; synthetic testbed and the Urzainki et al. 2020 benchmark | diagnostic, frozen; see [docs/neraca-air.md](docs/neraca-air.md) |
+| `stations.py` | SiTMAT station files for the deficit and the physical model | |
 
-Renamed 2026-10-20: the physical model was package `watershare` (with a `neraca` subpackage), now `repeat_neraca`; the experiments were package `neracaair`, now `repeat_neraca.bucket` (`python -m repeat_neraca.bucket.run`); `neraca_unit_tier2.csv` is now `neraca_unit.csv`. Generated reports and HTML pages made before that date (`docs/reports/`, `docs/bucket_reports/`) still name the old modules.
-
-Note that the experiments write their own `neraca_unit.csv` (bucket-model indicators) into their own output folder. It is a different table from the physical model's `neraca_unit.csv` (water table per sub-KHG, `neraca_skill_ok`); the folder tells which.
+The bucket-model experiments (`repeat_neraca.bucket`, fitted to SiTMAT stations) were retired on 2026-10-26: they failed their spatial skill check, and water table data are limited to one season. Their reports stay in `docs/bucket_reports/` and [docs/bucket_experiments_README.md](docs/bucket_experiments_README.md); the code is in git history (uncommitted edits at retirement: `docs/bucket_reports/bucket_uncommitted_edits_2026-10-26.patch`).
 
 ## Install
 
+A Python package (version 0.1.0) with four commands. repeat-common is not on PyPI: install it from its folder (or its GitHub repository) first.
+
 ```bash
-pip install -e ../repeat-common            # needed by repeat_neraca.bucket; the physical model itself reads files only
-pip install -e ".[neraca]"                 # real-KHG inputs for the physical model
-pip install -e ".[neraca,experiments,dev]" # also the bucket experiments and pytest
+pip install ../repeat-common[gee]          # shared readers; [gee] adds earthengine-api
+pip install -e ".[all,dev]"                # or without -e; extras: neraca (real-KHG inputs), sitmat (stations), gee (Earth Engine, batch)
 python -m pytest -q
 ```
 
-`repeat_neraca.params.Registry` finds `config/parameters.yaml` relative to the source tree, so use an editable install.
+| Command | Module | Does |
+|---|---|---|
+| `repeat-neraca-batch` | `repeat_neraca.batch` | Earth Engine fetch and balance for a list of KHG, `--selected` or `--all` |
+| `repeat-neraca-balance` | `repeat_neraca.balance` | climatic balance per sub-KHG from fetched tables |
+| `repeat-neraca-stations` | `repeat_neraca.stations` | SiTMAT station files for a KHG |
+| `repeat-neraca-run` | `repeat_neraca.run` | KHG deficit and the physical model (`scripts/run_neraca.py` is the same) |
+
+Environment: `REPEAT_KHG` (work folders), `REPEAT_DATA` (data), `REPEAT_HUB` (the `re-peat` folder, for the KHG registry), `SITMAT_PROCESSED` (stations), `EE_PROJECT` and Earth Engine credentials (`earthengine authenticate`) for the fetch. The parameter registry ships inside the package (`src/repeat_neraca/parameters.yaml`). Checked 2026-10-26: a non-editable install in a new environment outside the workspace passes the tests and reproduces the balance, station and deficit outputs byte for byte; the physical model's tier 1 series differ in the last printed digit (0.01 cm) with newer numpy and scipy.
+
+## Climatic balance per sub-KHG
+
+```bash
+python -m repeat_common.fetch_gee_balance --khg 16.02.01 --products chirps,wapor,mod16 --start 2018-01-01 --end 2026-10-01
+python -m repeat_neraca.balance --inputs $REPEAT_KHG/16.02.01_sugihan_lumpur/03_neraca/inputs --out $REPEAT_KHG/16.02.01_sugihan_lumpur/03_neraca/runs/balance
+```
+
+Many KHG in one command (any KHG in `re-peat/sites/khg_registry.csv`; a KHG without `02_delineation/subkhg_units.gpkg` runs as one unit, into `inputs/khg_level/` and `runs/balance_khg_level/`; fetches are cached per year so reruns are cheap; summary in `_khg/neraca_balance_summary.csv`):
+
+```bash
+python -m repeat_neraca.batch --selected --end 2026-10-01      # or --khg <codes...>, or --all for every KHG
+```
+
+The first command writes `balance_<product>_dekad.csv` (rain or evapotranspiration per sub-KHG per dekad, mm, with valid pixel counts and time coverage) and `units_landcover.csv` (WorldCover shares) into the KHG's `03_neraca/inputs/`. Each product is reduced on its own grid. The second writes `neraca_balance_unit.csv`, `neraca_balance_monthly.csv` and `neraca_balance.md`:
+
+| Column | Meaning |
+|---|---|
+| `u_wb_mean` | mean monthly `WB = P (1 - I) (1 - C) - ET` over the complete years, mm/month (same definition as `repeat-prioritisation` `common/indicators.py`, so the table can replace its columns through `extra_indicators`) |
+| `u_deficit_months` | months with WB < 0, per year |
+| `wb_year_sd_mm` | spread of the yearly mean WB between years |
+| `p_minus_et_mean_mm` | P - ET without C and I (WaPOR and MOD16 already contain evaporation of intercepted rain) |
+| `interception_share`, `n_px_<product>`, `wb_mean_<et>`, `deficit_months_<et>` | the I used, pixels per unit, the second ET source |
+| `balance_stable_ok` | 1 when the order of sub-KHG holds between years and ET sources (Spearman at least 0.5, provisional) |
+
+C (`runoff_coefficient` 0.12) and the interception per WorldCover class (`interception_*`) are Bambang Kun Cahyono's values, in the registry. Checks: `scripts/check_gee_balance.py` (fetch equals a direct reduction of one image; MOD16 fill codes), `tests/test_balance.py`.
 
 ## Run the physical model on a real KHG
 
-Set `REPEAT_DATA` (the REPEAT-LH `_data` folder) and `REPEAT_WORK` (derived data: clipped vectors, sub-KHG polygons, the ERA5 cache, the station files). The real site configs are in the hub, `re-peat/sites/<site>/neraca.yaml`; `config/neraca/example.yaml` is a copy to start from. Besides the paths in the config, the model reads `<inputs_dir>/stations.csv` and `stations_daily.csv` (written by `python -m repeat_neraca.bucket.export_inputs`), and rain and evaporation from the ERA5 cache (`forcing_direct`) or `forcing_daily.csv`.
+Set `REPEAT_DATA` (the REPEAT-LH `_data` folder) and `REPEAT_WORK` (derived data: clipped vectors, sub-KHG polygons, the ERA5 cache, the station files). The real site configs are in the hub, `re-peat/sites/<site>/neraca.yaml`; `config/neraca/example.yaml` is a copy to start from. Besides the paths in the config, the model reads `<inputs_dir>/stations.csv` and `stations_daily.csv` (written by `python -m repeat_neraca.stations --config <site>/neraca.yaml`; needs `SITMAT_PROCESSED`), and rain and evaporation from the ERA5 cache (`forcing_direct`) or `forcing_daily.csv` (written earlier by the retired bucket experiments).
 
 ```bash
-python scripts/run_neraca.py --config ../re-peat/sites/sugihan_lumpur/neraca.yaml --tier 1 --classes primary,secondary,tertiary --k-multiplier 1,10,50,200,1000 --drawdown 0.5,1.2
-python scripts/run_neraca.py --config ../re-peat/sites/sugihan_lumpur/neraca.yaml --tier 2 --res 500
+python scripts/run_neraca.py --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml --tier 1 --classes primary,secondary,tertiary --k-multiplier 1,10,50,200,1000 --drawdown 0.5,1.2
+python scripts/run_neraca.py --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml --tier 2 --res 500
 ```
 
 `--peat-table urzainki2020|tropical-small|tropical-large` chooses the storage and transmissivity of the peat: the default is the boreal-curve table of this repository, the other two are the tropical sets of Urzainki et al. (2023). What the choice does, and why it is not the default yet: [docs/tropical-peat-hydraulic-parameters.md](docs/tropical-peat-hydraulic-parameters.md).
@@ -56,11 +90,11 @@ Paths are set in the site config (`re-peat/sites/<site>/neraca.yaml`, `${ENV}` e
 | Observed depth (`<inputs_dir>/stations_daily.csv`) | `date, station_id, depth_cm` | pivoted to dates x stations |
 | Rain and evaporation (`forcing_direct`, or `forcing_daily.csv`) | KHG-mean daily `P_era5_mm`, `E_era5_mm`, `E_wapor_mm`, local days (`tz_hours`, 7 = WIB) | ERA5 hourly (0.25 degree) accumulated to local days; WaPOR (about 300 m) where it was read, empty otherwise. One series per KHG, no spatial forcing |
 
-The station and forcing files are written by `python -m repeat_neraca.bucket.export_inputs` (it holds the cloud readers for ERA5, WaPOR and SiTMAT; the physical model reads files, and ERA5 through `repeat-common` from its cache). Evaporation used by tier 1 and 2 is the config key `evaporation` (`E_era5_mm` or `E_wapor_mm`). A day with no forcing keeps the state and gives no output.
+The station files are written by `python -m repeat_neraca.stations`; the daily forcing comes from the ERA5 cache through `repeat-common` (`forcing_direct`) or from the existing `forcing_daily.csv`. Evaporation used by tier 1 and 2 is the config key `evaporation` (`E_era5_mm` or `E_wapor_mm`). A day with no forcing keeps the state and gives no output.
 
 ### Parameters
 
-The registry `config/parameters.yaml` (read by `params.Registry`; `python scripts/registry_table.py` prints it as a table) holds many parameters for the wider RE-PEAT work. The physical model reads only these:
+The registry `src/repeat_neraca/parameters.yaml` (read by `params.Registry`; `python scripts/registry_table.py` prints it as a table) holds many parameters for the wider RE-PEAT work. The physical model reads only these:
 
 | Registry key | Default | Used for |
 |---|---|---|
@@ -152,7 +186,7 @@ deficit_mm = max(0, -sum(P - E) - Sy x dz_obs x 10)        deficit_m3 = deficit_
 
 ## What neraca hands to the other modules
 
-`re-peat/docs/11-data-contracts.md`, section C5: a KHG-level table (`neraca_khg.csv`) and a sub-KHG table (`neraca_unit.csv`, written for now as `neraca_unit.csv`). With the current physical model the per-sub-KHG numbers carry no ranking information (`neraca_skill_ok = 0`); the usable result is the KHG-level deficit, a mass balance defined in [docs/neraca-air.md](docs/neraca-air.md#khg-deficit-neraca_khgcsv).
+`re-peat/docs/11-data-contracts.md`, section C5: a KHG-level table (`neraca_khg.csv`, the deficit) and a sub-KHG table. The physical model's per-sub-KHG water tables carry no ranking information (`neraca_skill_ok = 0`). The sub-KHG output is the climatic balance, `neraca_balance_unit.csv` (`u_wb_mean`, `u_deficit_months`); the prioritisation merges it through `extra_indicators` and leaves it empty where `balance_stable_ok` is 0 (`common.pipeline.gate_balance`).
 
 ## Third-party data
 
@@ -161,10 +195,10 @@ deficit_mm = max(0, -sum(P - E) - Sy x dz_obs x 10)        deficit_m3 = deficit_
 ## Layout
 
 ```
-src/repeat_neraca/         physical model, registry, testbed
-src/repeat_neraca/bucket/  bucket-model experiments (config.py holds the settings they need)
-config/             parameters.yaml (registry), neraca/<khg>.yaml (inputs of a real KHG)
-scripts/            run_neraca.py, benchmark_urzainki2020.py, registry_table.py
-tests/              physical-model tests (pytest) and the experiments' tests
-docs/               neraca-air.md, references.md, reports/ (physical model), bucket_reports/ (experiments)
+src/repeat_neraca/  balance.py (sub-KHG balance), deficit.py, stations.py, physical model (lumped, spatial, testbed), registry
+config/             parameters.yaml (registry), neraca/example.yaml
+scripts/            run_neraca.py, check_gee_balance.py, benchmark_urzainki2020.py, registry_table.py
+tests/              pytest
+docs/               method-plan.md, neraca-air.md, references.md, reports/ (physical model), bucket_reports/ (retired experiments)
+research_notes/     sources: 2021 Earth Engine scripts, Pulau Padang runoff, operational gaps
 ```

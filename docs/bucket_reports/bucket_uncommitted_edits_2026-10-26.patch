@@ -1,0 +1,179 @@
+diff --git a/scripts/forcing_test.sh b/scripts/forcing_test.sh
+index 1c94a7f..919978b 100644
+--- a/scripts/forcing_test.sh
++++ b/scripts/forcing_test.sh
+@@ -2,15 +2,15 @@
+ # Question: does finer rain (CHIRPS v3, 5 km) and/or evaporation (WaPOR v3, 300 m) than ERA5 (25 km) improve the neraca air
+ # calibration on the SiTMAT stations? Runs the station calibration (no sub-KHG indicators) for every combination.
+ #
+-#   bash scripts/forcing_test.sh sugihan_lumpur      # or kampar_gaung; run in repeat-neraca; needs REPEAT_DATA, REPEAT_WORK and SITMAT_PROCESSED
++#   bash scripts/forcing_test.sh 16.02.01_sugihan_lumpur      # or 14.02-04-05.01_kampar_gaung; run in repeat-neraca; needs REPEAT_DATA, REPEAT_KHG and SITMAT_PROCESSED
+ #
+ # Reads the cached ERA5 calibration window (run `repeat_neraca.bucket.run --forcing-only` first for the baseline), reads CHIRPS and WaPOR
+-# for the same days (about 10-20 minutes the first time, cached afterwards) and writes one report per combination to
+-# $REPEAT_WORK/out_neraca_<khg>_<rain>_<evap>/neraca_report.json. `python -m repeat_neraca.bucket.forcing_compare` puts them side by side.
++# for the same days (about 10-20 minutes the first time, cached afterwards) and writes one report per combination to the KHG work
++# folder, $REPEAT_KHG/<khg>/03_neraca/runs/<rain>_<evap>/neraca_report.json. `python -m repeat_neraca.bucket.forcing_compare` puts them side by side.
+ set -euo pipefail
+-khg="${1:?usage: forcing_test.sh <config folder name, e.g. sugihan_lumpur>}"
++khg="${1:?usage: forcing_test.sh <KHG folder name, e.g. 16.02.01_sugihan_lumpur>}"
+ cfg="../re-peat/sites/${khg}/neraca_experiments.yaml"
+ for combo in "chirps era5" "era5 wapor" "chirps wapor"; do
+   set -- $combo
+-  python -m repeat_neraca.bucket.run --config "$cfg" --calibrate-only --rain "$1" --evap "$2" --out "${REPEAT_WORK:?set REPEAT_WORK}/out_neraca_${khg}_$1_$2"
++  python -m repeat_neraca.bucket.run --config "$cfg" --calibrate-only --rain "$1" --evap "$2" --out "${REPEAT_KHG:?set REPEAT_KHG}/${khg}/03_neraca/runs/$1_$2"
+ done
+diff --git a/src/repeat_neraca/bucket/balance_compare.py b/src/repeat_neraca/bucket/balance_compare.py
+index bf2fb95..656f09e 100644
+--- a/src/repeat_neraca/bucket/balance_compare.py
++++ b/src/repeat_neraca/bucket/balance_compare.py
+@@ -1,7 +1,7 @@
+ #!/usr/bin/env python3
+ """The team's neraca air (a rain minus evaporation balance) per sub-KHG from different rain and evaporation sources: does it separate sub-KHG?
+ 
+-  python -m repeat_neraca.bucket.balance_compare --config ../re-peat/sites/kampar_gaung/neraca_experiments.yaml [--sources terraclimate,era5,wapor]
++  python -m repeat_neraca.bucket.balance_compare --config ../re-peat/sites/14.02-04-05.01_kampar_gaung/neraca_experiments.yaml [--sources terraclimate,era5,wapor]
+ 
+ The balance is the one of the Kahayan-Sebangau study and of `common/indicators.py` (`u_wb_mean`, `u_deficit_months`), monthly:
+     WB = P x (1 - interception of the land cover) x (1 - runoff coefficient) - ET
+diff --git a/src/repeat_neraca/bucket/canal_level.py b/src/repeat_neraca/bucket/canal_level.py
+index 482f4dc..9c4b3af 100644
+--- a/src/repeat_neraca/bucket/canal_level.py
++++ b/src/repeat_neraca/bucket/canal_level.py
+@@ -1,7 +1,7 @@
+ #!/usr/bin/env python3
+ """Does giving each concession its own canal water level make the water table predictable? (the idea of Taufik et al. 2019, Ambio 48:363)
+ 
+-  python -m repeat_neraca.bucket.canal_level --config ../re-peat/sites/kampar_gaung/neraca_experiments.yaml
++  python -m repeat_neraca.bucket.canal_level --config ../re-peat/sites/14.02-04-05.01_kampar_gaung/neraca_experiments.yaml
+ 
+ Model, per station, in cm below the surface (z, positive down), daily:
+ 
+diff --git a/src/repeat_neraca/bucket/covariates.py b/src/repeat_neraca/bucket/covariates.py
+index 3d098b7..b95227e 100644
+--- a/src/repeat_neraca/bucket/covariates.py
++++ b/src/repeat_neraca/bucket/covariates.py
+@@ -1,7 +1,7 @@
+ #!/usr/bin/env python3
+ """Which simple covariates explain where the water table is deepest at the SiTMAT stations?
+ 
+-  python -m repeat_neraca.bucket.covariates --config ../re-peat/sites/kampar_gaung/neraca_experiments.yaml [--ndvi-year 2019]
++  python -m repeat_neraca.bucket.covariates --config ../re-peat/sites/14.02-04-05.01_kampar_gaung/neraca_experiments.yaml [--ndvi-year 2019]
+ 
+ Reads neraca_stations.csv (written by `repeat_neraca.bucket.run --calibrate-only` or the full run), adds covariates at each station
+ (peat depth, elevation and relief from the DTM, canal distance and density, distance to rivers, primary canals and the KHG
+diff --git a/src/repeat_neraca/bucket/dashboard.py b/src/repeat_neraca/bucket/dashboard.py
+index d5bd67e..0f0692a 100644
+--- a/src/repeat_neraca/bucket/dashboard.py
++++ b/src/repeat_neraca/bucket/dashboard.py
+@@ -1,7 +1,7 @@
+ #!/usr/bin/env python3
+ """Build the HTML page that explains neraca air and shows how it did against the SiTMAT stations.
+ 
+-  python -m repeat_neraca.bucket.dashboard --neraca-config ../re-peat/sites/kampar_gaung/neraca_experiments.yaml --out docs/neraca_air_process.html
++  python -m repeat_neraca.bucket.dashboard --neraca-config ../re-peat/sites/14.02-04-05.01_kampar_gaung/neraca_experiments.yaml --out docs/neraca_air_process.html
+ 
+ One self-contained file: the mechanism of the water-table bucket, the process with its skill check (coloured by the verdict
+ of the run), the seasonal curve of observed and simulated water table, skill on stations that were left out of the fit
+diff --git a/src/repeat_neraca/bucket/export_inputs.py b/src/repeat_neraca/bucket/export_inputs.py
+index 22061af..0a46f54 100644
+--- a/src/repeat_neraca/bucket/export_inputs.py
++++ b/src/repeat_neraca/bucket/export_inputs.py
+@@ -1,7 +1,7 @@
+ #!/usr/bin/env python3
+ """Write the daily forcing and the water-table stations of a KHG as plain files, for the physical neraca air in the `re-peat` repository.
+ 
+-  python -m repeat_neraca.bucket.export_inputs --config ../re-peat/sites/sugihan_lumpur/neraca_experiments.yaml --out $REPEAT_WORK/neraca_inputs/sugihan_lumpur
++  python -m repeat_neraca.bucket.export_inputs --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca_experiments.yaml --out $REPEAT_KHG/16.02.01_sugihan_lumpur/03_neraca/inputs
+ 
+ the physical model (`repeat_neraca`) reads files only, so the cloud readers (ERA5, WaPOR, SiTMAT) stay here. Written into --out:
+ 
+diff --git a/src/repeat_neraca/bucket/forcing_compare.py b/src/repeat_neraca/bucket/forcing_compare.py
+index 32c260f..d75d01f 100644
+--- a/src/repeat_neraca/bucket/forcing_compare.py
++++ b/src/repeat_neraca/bucket/forcing_compare.py
+@@ -1,9 +1,10 @@
+ #!/usr/bin/env python3
+ """Side by side: the neraca air calibration with ERA5, CHIRPS rain and WaPOR evaporation (written by scripts/forcing_test.sh).
+ 
+-  python -m repeat_neraca.bucket.forcing_compare --khg sugihan_lumpur --baseline data_local/out_neraca_sl --out docs/reports/sugihan_lumpur_forcing_test.md
++  python -m repeat_neraca.bucket.forcing_compare --khg 16.02.01_sugihan_lumpur --baseline $REPEAT_KHG/16.02.01_sugihan_lumpur/03_neraca/runs/baseline_era5 --out docs/reports/sugihan_lumpur_forcing_test.md
+ 
+-Reads neraca_report.json of the baseline run (ERA5 rain and evaporation) and of every data_local/out_neraca_<khg>_<rain>_<evap>/ folder.
++Reads neraca_report.json of the baseline run (ERA5 rain and evaporation) and of every other run folder of the KHG work folder,
++$REPEAT_KHG/<khg>/03_neraca/runs/<rain>_<evap>/.
+ Every number is out-of-fold: the stations of the scored block were not used to fit the parameters. Compare RMSE with the baseline
+ column (every station follows the mean observed curve of the training stations); a model is useful only if it is below it.
+ """
+@@ -11,6 +12,7 @@ from __future__ import annotations
+ 
+ import argparse
+ import json
++import os
+ from pathlib import Path
+ 
+ 
+@@ -28,13 +30,17 @@ def _row(label: str, report: Path) -> list[str] | None:
+ 
+ def main(argv=None):
+     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+-    ap.add_argument("--khg", required=True, help="config folder name, e.g. sugihan_lumpur")
++    ap.add_argument("--khg", required=True, help="KHG work folder name (= config folder name), e.g. 16.02.01_sugihan_lumpur")
+     ap.add_argument("--baseline", required=True, help="output folder of the ERA5 run (neraca.yaml out)")
+     ap.add_argument("--out", help="write the table here as markdown")
+     a = ap.parse_args(argv)
+     rows = [_row("ERA5 rain + ERA5 evaporation", Path(a.baseline) / "neraca_report.json")]
+-    for d in sorted(Path("data_local").glob(f"out_neraca_{a.khg}_*")):
+-        rain, evap = d.name.replace(f"out_neraca_{a.khg}_", "").split("_", 1)
++    if not os.environ.get("REPEAT_KHG"):
++        raise SystemExit("set REPEAT_KHG to the workspace _khg folder")
++    runs = Path(os.environ["REPEAT_KHG"]) / a.khg / "03_neraca" / "runs"   # runs/<rain>_<evap>/ in the KHG work folder
++    found = [d for d in sorted(runs.iterdir()) if d.is_dir() and d.resolve() != Path(a.baseline).resolve() and d.name.count("_") == 1] if runs.is_dir() else []
++    for d in found:
++        rain, evap = d.name.split("_", 1)
+         rows.append(_row(f"{rain} rain + {evap} evaporation", d / "neraca_report.json"))
+     rows = [r for r in rows if r]
+     head = ["forcing", "period scored", "stations", "RMSE with drainage (cm)", "RMSE without (cm)", "baseline RMSE (cm)",
+diff --git a/src/repeat_neraca/bucket/radar_temporal.py b/src/repeat_neraca/bucket/radar_temporal.py
+index ac6225a..a35ce22 100644
+--- a/src/repeat_neraca/bucket/radar_temporal.py
++++ b/src/repeat_neraca/bucket/radar_temporal.py
+@@ -1,7 +1,7 @@
+ #!/usr/bin/env python3
+ """Does a Sentinel-1 anomaly predict how a station's water table moves in time, for stations left out of the fit?
+ 
+-  python -m repeat_neraca.bucket.radar_temporal --config ../re-peat/sites/kampar_gaung/neraca_experiments.yaml
++  python -m repeat_neraca.bucket.radar_temporal --config ../re-peat/sites/14.02-04-05.01_kampar_gaung/neraca_experiments.yaml
+ 
+ Needs neraca_s1_series.csv and neraca_stations.csv in the output folder (written by `repeat_neraca.bucket.sentinel1` and
+ `repeat_neraca.bucket.run`). The question is about timing, not level: every station's own mean is removed from the observed depth, so
+diff --git a/src/repeat_neraca/bucket/run.py b/src/repeat_neraca/bucket/run.py
+index ac67347..a0c0f25 100644
+--- a/src/repeat_neraca/bucket/run.py
++++ b/src/repeat_neraca/bucket/run.py
+@@ -2,9 +2,9 @@
+ """Neraca air per sub-KHG: a daily water-table bucket driven by ERA5, fitted to SiTMAT stations.
+ Definition, outputs and checks: repeat_neraca/bucket/README.md.
+ 
+-  python -m repeat_neraca.bucket.run --config ../re-peat/sites/kampar_gaung/neraca_experiments.yaml --forcing-only    # slow, once: ERA5 for every window
+-  python -m repeat_neraca.bucket.run --config ../re-peat/sites/kampar_gaung/neraca_experiments.yaml --calibrate-only  # skill on SiTMAT stations only
+-  python -m repeat_neraca.bucket.run --config ../re-peat/sites/kampar_gaung/neraca_experiments.yaml                   # everything
++  python -m repeat_neraca.bucket.run --config ../re-peat/sites/14.02-04-05.01_kampar_gaung/neraca_experiments.yaml --forcing-only    # slow, once: ERA5 for every window
++  python -m repeat_neraca.bucket.run --config ../re-peat/sites/14.02-04-05.01_kampar_gaung/neraca_experiments.yaml --calibrate-only  # skill on SiTMAT stations only
++  python -m repeat_neraca.bucket.run --config ../re-peat/sites/14.02-04-05.01_kampar_gaung/neraca_experiments.yaml                   # everything
+   python -m repeat_neraca.bucket.run --print-default-config
+ 
+ Needs: units.path (sub-KHG polygons with khg_id and unit_id, e.g. from repeat_delineation), khg, rasters.peat_depth
+diff --git a/src/repeat_neraca/bucket/sentinel1.py b/src/repeat_neraca/bucket/sentinel1.py
+index 4bc6d6d..1e611a3 100644
+--- a/src/repeat_neraca/bucket/sentinel1.py
++++ b/src/repeat_neraca/bucket/sentinel1.py
+@@ -1,7 +1,7 @@
+ #!/usr/bin/env python3
+ """Does Sentinel-1 radar backscatter tell which SiTMAT stations have the deepest water table?
+ 
+-  python -m repeat_neraca.bucket.sentinel1 --config ../re-peat/sites/kampar_gaung/neraca_experiments.yaml [--refetch]
++  python -m repeat_neraca.bucket.sentinel1 --config ../re-peat/sites/14.02-04-05.01_kampar_gaung/neraca_experiments.yaml [--refetch]
+ 
+ Why: ERA5 is too coarse to separate stations (neraca air has no spatial skill), and water tables are managed, so a
+ direct observation of wetness may carry what the weather cannot. Sentinel-1 C-band backscatter (RTC gamma0, 10 m,

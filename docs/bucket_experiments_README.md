@@ -1,3 +1,5 @@
+> **Retired 2026-10-26.** The package `repeat_neraca.bucket` was removed; this page and `bucket_reports/` are the record. Its balance comparison continues as `repeat_neraca.balance`, its station export as `repeat_neraca.stations`.
+
 # Neraca air (water balance)
 
 > **Experiments (2026-10-16, moved to repeat-neraca 2026-10-20).** Neraca air as a physical model (a KHG-level water table and a 2D groundwater model, no fitted parameters) is `docs/neraca-air.md` and `src/repeat_neraca/` in this repository. The package `src/repeat_neraca/bucket/` is kept as the record of the experiments below
@@ -72,7 +74,7 @@ repeat_neraca/bucket/
 ## First test (Sungai Kampar - Sungai Gaung, 2026-10-16)
 
 86 SiTMAT concession stations, 2026-04-01 to 2026-10-09, scored on spatial blocks left out of the fit. Steps, settings and reasons:
-`re-peat/sites/kampar_gaung/README.md` (the hub); all numbers: `re-peat/sites/kampar_gaung/reports/kampar_gaung.md`.
+`re-peat/sites/14.02-04-05.01_kampar_gaung/README.md` (the hub); all numbers: `re-peat/sites/14.02-04-05.01_kampar_gaung/reports/kampar_gaung.md`.
 
 - **Temporal skill is moderate:** median per-station correlation 0.63 with the drainage term.
 - **Spatial skill is nil:** Spearman across held-out stations -0.03 (peak depth) and -0.02 (days deeper than 40 cm); the out-of-fold RMSE
@@ -84,7 +86,7 @@ repeat_neraca/bucket/
 - **No simple covariate explains which stations are deepest** (Spearman 0.34 or less for peat depth, elevation, canal distance and density, river
   distance, distance to the KHG edge, NDMI, NDVI).
 - **The outputs are rescaled covariates:** `u_storage_decline_pct` has a Spearman of -0.91 with mean peat depth across the 26 sub-KHG, and
-  `u_wt_peak_cm` / `u_wt_days_gt40` have 0.82 / 0.68 with canal proximity (tables in `re-peat/sites/kampar_gaung/reports/kampar_gaung.md`).
+  `u_wt_peak_cm` / `u_wt_days_gt40` have 0.82 / 0.68 with canal proximity (tables in `re-peat/sites/14.02-04-05.01_kampar_gaung/reports/kampar_gaung.md`).
 - The peat depth raster has a floor at 50 cm (37% of its valid pixels), so `u_storage_decline_pct` is a mechanical 80% wherever peat is at the floor.
 
 What a spatially useful neraca air would need: rainfall and evaporation finer than 25 km, and information on how water levels are
@@ -115,7 +117,7 @@ Next steps if pursued: treat the concession as the unit for management (its poly
   WaPOR evaporation is lower than ERA5 (mean 3.4 against 3.9 mm/day), so the simulated water table sits shallower still. This does not show WaPOR is worse as a product, only that a
   finer evaporation field does not repair a model with no management term.
 - **CHIRPS v3 rain (5 km): not done.** data.chc.ucsb.edu answered HTTP 403 to every request after a first 198-file parallel read, and still did at the time of writing. The reader now takes two files at a
-  time and caches each day; once the block lifts, `bash scripts/forcing_test.sh sugihan_lumpur` (and `kampar_gaung`) completes the comparison (the WaPOR runs are rerun but cheap).
+  time and caches each day; once the block lifts, `bash scripts/forcing_test.sh 16.02.01_sugihan_lumpur` (and `kampar_gaung`) completes the comparison (the WaPOR runs are rerun but cheap).
   CHIRPS final data ends 2026-09-30, so the scored window is shorter.
 
 ## Fourth test: the team's balance (rain minus evaporation) per sub-KHG (2026-10-16)

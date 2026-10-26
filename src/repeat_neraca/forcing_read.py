@@ -1,6 +1,6 @@
 """Daily rain and evaporation of a KHG for the physical neraca air: from forcing_daily.csv, or read directly through repeat-common.
 
-`file`    reads `<inputs_dir>/forcing_daily.csv` (written by `repeat_neraca.bucket.export_inputs`), the offline route.
+`file`    reads `<inputs_dir>/forcing_daily.csv` (written by the retired bucket experiments; the files on disk still serve), the offline route.
 `direct`  reads ERA5 (and WaPOR where cached) with `repeat_common.forcing`, using the cache folder of the window first, and returns the
           same table. Needs repeat-common and the `forcing_direct:` block of the config. A cache miss reads the cloud (about 11 minutes).
 `auto`    direct if the config has a `forcing_direct:` block, otherwise file.

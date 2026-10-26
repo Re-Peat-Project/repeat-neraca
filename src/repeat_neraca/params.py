@@ -1,6 +1,6 @@
 """Parameter registry: load, validate, override, snapshot and sample.
 
-The registry in ``config/parameters.yaml`` is the single source of numbers. Every run stores
+The registry in ``src/repeat_neraca/parameters.yaml`` is the single source of numbers. Every run stores
 ``Registry.snapshot()`` so that results reproduce exactly.
 """
 from __future__ import annotations
@@ -19,7 +19,7 @@ Scope = Literal["global", "khg", "compartment", "reach", "block", "gate", "pump"
 Sampling = Literal["fixed", "uniform", "log-uniform"]
 Confidence = Literal["regulation", "high", "medium", "low", "assumption"]
 
-DEFAULT_PATH = Path(__file__).resolve().parents[2] / "config" / "parameters.yaml"
+DEFAULT_PATH = Path(__file__).resolve().with_name("parameters.yaml")      # package data, so an installed package finds it
 
 
 class Param(BaseModel):

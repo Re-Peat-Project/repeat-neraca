@@ -1,0 +1,475 @@
+# Parameter registry: the single source of numbers for the model.
+# Conventions: SI units except where the unit says otherwise; water table depth is NEGATIVE
+# below the surface (-0.4 = 40 cm below). `range` is the plausible range used for Monte Carlo
+# and edit checks; `outer_range` (optional) is the wider bound used only for outer sensitivity runs.
+# confidence: regulation | high | medium | low | assumption
+# Docs tables are generated from this file (scripts/registry_table.py); do not edit them by hand.
+version: 1
+
+parameters:
+  # ---- targets and hazard ------------------------------------------------------------------
+  target_wtd:
+    default: -0.40
+    range: [-0.60, -0.20]
+    unit: m
+    scope: global
+    sampling: uniform
+    source: PP 57/2016 (limit at the compliance point)
+    confidence: regulation
+  target_share_days:
+    default: 95
+    range: [80, 100]
+    unit: "%"
+    scope: global
+    sampling: uniform
+    source: design choice; strategy test 1
+    confidence: assumption
+  hazard_moderate:
+    default: -0.40
+    range: [-0.50, -0.30]
+    unit: m
+    scope: global
+    sampling: uniform
+    source: Taufik et al. 2022 (danger mostly below 0.4 m)
+    confidence: medium
+    note: range is a placeholder; bounds are adjustable by the user
+  hazard_high:
+    default: -0.60
+    range: [-0.70, -0.50]
+    unit: m
+    scope: global
+    sampling: uniform
+    source: Taufik et al. 2022 (burned area only below 0.6 m)
+    confidence: medium
+    note: range is a placeholder
+  hazard_extreme:
+    default: -0.85
+    range: [-1.00, -0.70]
+    unit: m
+    scope: global
+    sampling: uniform
+    source: Taufik et al. 2019 (danger levels off near 0.85 m)
+    confidence: medium
+    note: range is a placeholder
+  dry_day_threshold:
+    default: 1
+    range: [0, 5]
+    unit: mm/day
+    scope: global
+    sampling: uniform
+    source: CHIRPS daily convention
+    confidence: assumption
+  hotspot_confidence:
+    default: 70
+    range: [60, 80]
+    unit: "%"
+    scope: global
+    sampling: uniform
+    source: Cahyono et al. 2022 (MODIS); for VIIRS use nominal and high classes
+    confidence: assumption
+
+  # ---- peat hydraulic properties ----------------------------------------------------------
+  sy_surface:
+    default: 0.30
+    range: [0.05, 0.60]
+    outer_range: [0.05, 1.0]
+    unit: "-"
+    scope: compartment
+    sampling: uniform
+    source: Ismail et al. 2021 (Padang Island); 0.05-0.30 in pristine top peat
+    confidence: medium
+    note: 1.0 when ponded
+  sy_at_1p5m:
+    default: 0.10
+    range: [0.03, 0.15]
+    unit: "-"
+    scope: compartment
+    sampling: uniform
+    source: Ismail et al. 2021
+    confidence: medium
+    note: the decay rate s2 is derived, ln(sy_surface / sy_at_1p5m) / 1.5, see Registry.sy_decay
+  k_forest:
+    default: 30
+    range: [5, 100]
+    outer_range: [1, 1300]
+    unit: m/day
+    scope: compartment
+    sampling: log-uniform
+    source: Kurnianto et al. 2019; Ritzema et al. 2014 (greater than 10 m/day typical)
+    confidence: medium
+    note: very variable; outer range spans reported values for tropical peat
+  k_drained:
+    default: 5
+    range: [1, 25]
+    unit: m/day
+    scope: compartment
+    sampling: log-uniform
+    source: Brunei and Kubu Raya measurements (doc 05)
+    confidence: medium
+    note: drained or burnt peat
+  l_inf_intact:
+    default: 200
+    range: [20, 1000]
+    unit: m
+    scope: compartment
+    sampling: log-uniform
+    source: field transects 170-240 m (Riau); about 600 m modelled (Urzainki et al. 2023)
+    confidence: medium
+  l_inf_burnt:
+    default: 60
+    range: [20, 120]
+    unit: m
+    scope: compartment
+    sampling: log-uniform
+    source: Limbung, West Kalimantan (single site, four months)
+    confidence: low
+    note: methodology had 20 m as the default; 20 m is the low end of this range
+  canal_rise_200m:
+    default: 0.6
+    range: [0.3, 0.8]
+    unit: m
+    scope: global
+    sampling: uniform
+    source: Sutikno et al. (Riau dipwell transects)
+    confidence: medium
+
+  # ---- evapotranspiration -----------------------------------------------------------------
+  et0:
+    default: 4.17
+    range: [3.0, 5.0]
+    unit: mm/day
+    scope: khg
+    sampling: uniform
+    source: multi-year tropical peatland mean used by Urzainki et al. 2023; Kahayan-Sebangau 3.52 (Cahyono et al. 2022)
+    confidence: high
+  et_factor_burnt:
+    default: 0.87
+    range: [0.80, 0.95]
+    unit: "-"
+    scope: compartment
+    sampling: uniform
+    source: Hirano et al. 2015; Ohkubo et al. 2021 (burnt or shrub vs forest)
+    confidence: medium
+
+  # ---- canal blocks and gates -------------------------------------------------------------
+  dh_max:
+    default: 0.30
+    range: [0.20, 0.40]
+    unit: m
+    scope: global
+    sampling: uniform
+    source: BRG training module (head difference below about 30 cm)
+    confidence: medium
+  block_condition_new:
+    default: 1.0
+    range: [0.0, 1.0]
+    unit: "-"
+    scope: block
+    sampling: uniform
+    source: set from field survey
+    confidence: assumption
+  block_repair_threshold:
+    default: 0.7
+    range: [0.5, 0.9]
+    unit: "-"
+    scope: global
+    sampling: uniform
+    source: strategy test 3
+    confidence: assumption
+  k_leak:
+    default: 0.05
+    range: [0.005, 0.20]
+    outer_range: [0.0, 0.20]
+    unit: m2/s
+    scope: block
+    sampling: log-uniform
+    source: no measured values
+    confidence: assumption
+    note: flow in m3/s equals k_leak times head difference in m; lower bound of range is above zero for log sampling
+  block_halflife_wood:
+    default: 2.5
+    range: [1, 5]
+    unit: years
+    scope: block
+    sampling: uniform
+    source: 70% of 77 blocks damaged (Pantau Gambut, grey); poles last 3-5 years
+    confidence: low
+  block_halflife_compacted:
+    default: 7
+    range: [3, 15]
+    unit: years
+    scope: block
+    sampling: uniform
+    source: Hooijer et al. 2024 (7.5 years working)
+    confidence: low
+  gate_band_upper:
+    default: -0.20
+    range: [-0.30, -0.10]
+    unit: m
+    scope: gate
+    sampling: uniform
+    source: design choice (relative to surface)
+    confidence: assumption
+    note: range is a placeholder
+  gate_band_lower:
+    default: -0.40
+    range: [-0.60, -0.30]
+    unit: m
+    scope: gate
+    sampling: uniform
+    source: design choice (relative to surface)
+    confidence: assumption
+    note: range is a placeholder
+
+  # ---- pumps and relays -------------------------------------------------------------------
+  pump_hours:
+    default: 8
+    range: [0, 24]
+    unit: h/day
+    scope: pump
+    sampling: uniform
+    source: design choice
+    confidence: assumption
+  relay_conveyance_loss:
+    default: 0.20
+    range: [0.10, 0.30]
+    unit: "-"
+    scope: relay
+    sampling: uniform
+    source: placeholder, no data
+    confidence: low
+  relay_front_speed:
+    default: 1.7
+    range: [1.0, 3.0]
+    unit: km/day
+    scope: relay
+    sampling: uniform
+    source: 11 km in 6-7 days, Jambi 2026 (news; our inference)
+    confidence: low
+
+  # ---- allocation -------------------------------------------------------------------------
+  decision_interval_days:
+    default: 7
+    range: [1, 14]
+    unit: days
+    scope: global
+    sampling: fixed
+    integer: true
+    source: design choice
+    confidence: assumption
+  alloc_horizon:
+    default: 3
+    range: [1, 6]
+    unit: intervals
+    scope: global
+    sampling: fixed
+    integer: true
+    source: design choice
+    confidence: assumption
+  donor_buffer:
+    default: 0.10
+    range: [0.0, 0.30]
+    unit: m
+    scope: global
+    sampling: uniform
+    source: design choice
+    confidence: assumption
+  priority_protected:
+    default: 1.5
+    range: [1, 3]
+    unit: x
+    scope: global
+    sampling: uniform
+    source: design choice
+    confidence: assumption
+  priority_repeat_burn:
+    default: 1.5
+    range: [1, 3]
+    unit: x
+    scope: global
+    sampling: uniform
+    source: design choice
+    confidence: assumption
+  priority_village:
+    default: 1.0
+    range: [1, 3]
+    unit: x
+    scope: global
+    sampling: uniform
+    source: design choice
+    confidence: assumption
+  cost_horizon_years:
+    default: 10
+    range: [3, 20]
+    unit: years
+    scope: global
+    sampling: fixed
+    integer: true
+    source: design choice
+    confidence: assumption
+  terrain_sensitive_threshold:
+    default: 70
+    range: [50, 95]
+    unit: "% of Monte Carlo runs"
+    scope: global
+    sampling: uniform
+    source: design choice
+    confidence: assumption
+
+  # ---- terrain and subsidence -------------------------------------------------------------
+  dtm_accuracy_target:
+    default: 0.25
+    range: [0.10, 0.50]
+    outer_range: [0.10, 3.0]
+    unit: m
+    scope: khg
+    sampling: fixed
+    source: design target for LiDAR areas; DEMNAS 2.2-5.0 m published, 1.2-2.8 m in our tests
+    confidence: assumption
+  subsidence_drained_mean:
+    default: 2.2
+    range: [1.0, 4.0]
+    unit: cm/yr
+    scope: khg
+    sampling: uniform
+    source: Hoyt et al. 2020 (mean across drained SE Asian peat)
+    confidence: high
+  subsidence_plantation:
+    default: 4.3
+    range: [2.0, 6.0]
+    unit: cm/yr
+    scope: khg
+    sampling: uniform
+    source: Evans et al. 2019 (Acacia plantation)
+    confidence: high
+
+  # ---- grid and time ----------------------------------------------------------------------
+  grid_res_m:
+    default: 30
+    range: [10, 100]
+    unit: m
+    scope: global
+    sampling: fixed
+    source: design choice
+    confidence: assumption
+  time_step_days:
+    default: 1
+    range: [1, 1]
+    unit: days
+    scope: global
+    sampling: fixed
+    source: design choice
+    confidence: assumption
+
+  # ---- neraca air on a real KHG (repeat_neraca) -----------------------------------------
+  canal_drawdown:
+    default: 1.2
+    range: [0.5, 2.0]
+    unit: m
+    scope: khg
+    sampling: uniform
+    source: Urzainki et al. 2020 (canal depth 1.2 m in the Siak benchmark; water level = local surface minus a constant); Taufik et al. 2019 (canal level 0.5-1.3 m below ground by season, South Sumatra)
+    confidence: low
+    note: water level held in canals without blocks, below the local surface. The one management-dependent unknown of the physical neraca air; run it as a sensitivity parameter
+  river_stage_below_edge:
+    default: 0.3
+    range: [0.0, 1.0]
+    unit: m
+    scope: khg
+    sampling: uniform
+    source: testbed assumption (`testbed/khg.py`, river_stage_below_edge)
+    confidence: assumption
+    note: head below the local surface on the KHG edge cells, where a river or the sea sets the level
+  neraca_grid_res_m:
+    default: 500
+    range: [100, 1000]
+    unit: m
+    scope: global
+    sampling: fixed
+    source: design choice; 500 m keeps the 2D run to about 30,000 cells per KHG, 250 m takes about 100,000
+    confidence: assumption
+  initial_wtd:
+    default: -0.20
+    range: [-0.50, 0.0]
+    unit: m
+    scope: khg
+    sampling: uniform
+    source: assumption; end of the wet season (the SiTMAT stations start April near 0.3-0.4 m)
+    confidence: assumption
+  et_stress_start:
+    default: -1.54
+    range: [-1.54, -0.70]
+    unit: m
+    scope: khg
+    sampling: uniform
+    source: "Apers et al. 2022 (PEATCLSM-Trop, J Adv Model Earth Syst 14, doi 10.1029/2021MS002784): plant drought stress starts below -0.70 m in natural and -1.54 m in drained tropical peat"
+    confidence: medium
+    note: "water table depth below which evapotranspiration starts to fall below the forcing value. Default is the drained-peat value; -0.70 is the natural-peat value"
+  et_stress_end:
+    default: -2.85
+    range: [-2.85, -1.82]
+    unit: m
+    scope: khg
+    sampling: uniform
+    source: Apers et al. 2022 (wilting factor reaches 1 at -1.82 m natural, -2.85 m drained peat)
+    confidence: medium
+    note: water table depth at which evapotranspiration has fallen to zero (linear between et_stress_start and et_stress_end)
+  # ---- climatic water balance per sub-KHG (balance.py): WB = P (1 - interception) (1 - C) - ET -------------------
+  # Parameters of Bambang Kun Cahyono (UGM), taken as established by the project (2026-10-26). Values as carried in
+  # repeat-prioritisation/common/pipeline.py; see research_notes/gee_2021_kahayan_sebangau.md.
+  runoff_coefficient:
+    default: 0.12
+    range: [0.07, 0.18]
+    unit: "-"
+    scope: global
+    sampling: fixed
+    source: "Aditya & Cahyono 2018, measured on Pulau Padang (range 0.07-0.18), as cited in repeat-prioritisation; the 2021 Kahayan-Sebangau scripts used 0.25 as a placeholder"
+    confidence: medium
+  interception_tree:
+    default: 0.164
+    range: [0.0, 0.30]
+    unit: share of P
+    scope: global
+    sampling: fixed
+    source: Kahayan-Sebangau study 2021 (B.K. Cahyono), as cited in repeat-prioritisation; ESA WorldCover class 10 (tree cover)
+    confidence: medium
+  interception_mangrove:
+    default: 0.164
+    range: [0.0, 0.30]
+    unit: share of P
+    scope: global
+    sampling: fixed
+    source: as interception_tree; WorldCover class 95 (mangroves)
+    confidence: medium
+  interception_shrub:
+    default: 0.08
+    range: [0.0, 0.30]
+    unit: share of P
+    scope: global
+    sampling: fixed
+    source: as interception_tree; WorldCover class 20 (shrubland)
+    confidence: medium
+  interception_wetland:
+    default: 0.05
+    range: [0.0, 0.30]
+    unit: share of P
+    scope: global
+    sampling: fixed
+    source: as interception_tree; WorldCover class 90 (herbaceous wetland)
+    confidence: medium
+  interception_grass:
+    default: 0.03
+    range: [0.0, 0.30]
+    unit: share of P
+    scope: global
+    sampling: fixed
+    source: as interception_tree; WorldCover class 30 (grassland)
+    confidence: medium
+  interception_crop:
+    default: 0.03
+    range: [0.0, 0.30]
+    unit: share of P
+    scope: global
+    sampling: fixed
+    source: as interception_tree; WorldCover class 40 (cropland). Other classes (built-up, bare, water) intercept 0
+    confidence: medium

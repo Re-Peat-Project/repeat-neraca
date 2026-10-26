@@ -4,24 +4,33 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repeat-neraca"
-version = "0.0.1"
-description = "Neraca air (water balance) of a KHG for RE-PEAT: physical model, synthetic testbed, and the earlier bucket-model experiments"
+version = "0.1.0"
+description = "Neraca air (water balance) of a KHG for RE-PEAT: climatic balance per sub-KHG, KHG deficit, physical model and synthetic testbed"
 requires-python = ">=3.11"
-dependencies = ["numpy", "scipy", "pydantic>=2", "pyyaml"]
+dependencies = ["numpy", "scipy", "pandas>=2.0", "pydantic>=2", "pyyaml"]
 
 [project.optional-dependencies]
 dev = ["pytest"]
 benchmark = ["rasterio", "pandas"]
 # real KHG inputs (repeat_neraca.inputs) and the physical-model runner
 neraca = ["rasterio", "geopandas", "pandas", "pyproj", "shapely"]
-# the bucket-model experiments (repeat_neraca.bucket): forcing and Sentinel-1 reads come from repeat-common
-experiments = ["repeat-common", "rasterio", "geopandas", "pandas", "pyproj", "shapely", "matplotlib"]
+# SiTMAT station files (repeat_neraca.stations) and the ERA5 forcing route read through repeat-common
+sitmat = ["repeat-common", "geopandas"]
+# Earth Engine fetch and the batch runner (repeat_common.fetch_gee_balance, repeat_neraca.batch); needs `earthengine authenticate` and EE_PROJECT
+gee = ["repeat-common[gee]", "geopandas"]
+all = ["repeat-neraca[neraca,sitmat,gee]"]
+
+[project.scripts]
+repeat-neraca-balance = "repeat_neraca.balance:main"       # climatic balance per sub-KHG
+repeat-neraca-batch = "repeat_neraca.batch:main"           # fetch + balance for a list of KHG, or all
+repeat-neraca-stations = "repeat_neraca.stations:main"     # SiTMAT station files
+repeat-neraca-run = "repeat_neraca.run:main"               # KHG deficit and the physical model (diagnostic)
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-repeat_neraca = ["testbed/data/*"]
+repeat_neraca = ["testbed/data/*", "parameters.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,6 +1,6 @@
 # Neraca air: the physical water balance of a KHG
 
-Status 2026-10-16. Neraca air is built here, from physical parameters only, and compared with the observed water tables. Nothing is fitted. It replaces the bucket-model experiments in `src/repeat_neraca/bucket/` (kept here as a record, see `bucket_experiments_README.md`); the ranking in `repeat-prioritisation` can read the result through its `extra_indicators` file.
+Status 2026-10-16. Neraca air is built here, from physical parameters only, and compared with the observed water tables. Nothing is fitted. It replaced the bucket-model experiments (retired 2026-10-26, record in `bucket_experiments_README.md`). Since 2026-10-26 it is a diagnostic: the sub-KHG output is the climatic balance (`repeat_neraca.balance`, [method-plan.md](method-plan.md)); the ranking in `repeat-prioritisation` can read the result through its `extra_indicators` file.
 
 ## What it is
 
@@ -11,22 +11,21 @@ Two tiers, both in `src/repeat_neraca/`:
 | 1, KHG level | `Sy(z) dz/dt = R - C(z) (z - z_c)`, `C = 12 T(z) / L^2`: one water table for the whole KHG. R = P - ET, z_c = -canal drawdown, L = 1 / (canal length per area). The coefficient 12 T / L^2 reproduces the strip between two drains (tested against the 2D solver) | `lumped.py` |
 | 2, 2D groundwater | `Sy(z) dh/dt = div(T(z) grad h) + R` on a metric grid, fixed heads on the KHG edge ring (river or sea) and on the canal cells (local surface minus drawdown) | `spatial.py` (solver: `testbed/groundwater.py`) |
 
-`Sy` and `T` come from the peat table (`PeatTable.urzainki2020`, storage and transmissivity as functions of water table depth). Parameters are in `config/parameters.yaml`: `canal_drawdown` (1.2 m, Urzainki et al. 2020), `river_stage_below_edge` (0.3 m), `initial_wtd` (-0.2 m), `neraca_grid_res_m` (500 m). `inputs.py` reads a real KHG (boundary, DTM, peat depth, canals by class, stations) from the paths in `config/neraca/<khg>.yaml`; `validate.py` compares the run with the SiTMAT stations.
+`Sy` and `T` come from the peat table (`PeatTable.urzainki2020`, storage and transmissivity as functions of water table depth). Parameters are in `src/repeat_neraca/parameters.yaml`: `canal_drawdown` (1.2 m, Urzainki et al. 2020), `river_stage_below_edge` (0.3 m), `initial_wtd` (-0.2 m), `neraca_grid_res_m` (500 m). `inputs.py` reads a real KHG (boundary, DTM, peat depth, canals by class, stations) from the paths in `config/neraca/<khg>.yaml`; `validate.py` compares the run with the SiTMAT stations.
 
 Water table depth is negative below the surface inside the model; the reports give depth in cm, positive down.
 
 ## How to run it
 
-The rain, evaporation and station files are written by the experiments package of this repository (`repeat_neraca.bucket.export_inputs`, which reads ERA5 and SiTMAT through `repeat-common`). The site configs for it still live in the `repeat-prioritisation` checkout until they move to the hub (`sites/<khg>/`), so that step runs from there:
+The station files come from the SiTMAT extract (`repeat_neraca.stations`, config block `stations:`); the daily ERA5 forcing is read through `repeat-common` from the KHG cache (`forcing_direct`), or from the existing `forcing_daily.csv`:
 
 ```bash
-# in the khg-prioritisation-module checkout (pip install -e ../repeat-common ../repeat-neraca[experiments]); needs `repeat_neraca.bucket.run --forcing-only` once for the ERA5 windows
-python -m repeat_neraca.bucket.export_inputs --config ../re-peat/sites/sugihan_lumpur/neraca_experiments.yaml --out $REPEAT_WORK/neraca_inputs/sugihan_lumpur
+python -m repeat_neraca.stations --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml      # needs SITMAT_PROCESSED
 
 # in repeat-neraca (pip install -e .[neraca]; REPEAT_DATA and REPEAT_WORK set; site configs are in the hub, re-peat/sites/<site>/neraca.yaml)
-python scripts/run_neraca.py --config ../re-peat/sites/sugihan_lumpur/neraca.yaml --tier 1 --classes primary,secondary,tertiary --k-multiplier 1,10,50,200,1000 --drawdown 0.5,1.2
-python scripts/run_neraca.py --config ../re-peat/sites/sugihan_lumpur/neraca.yaml --tier 2 --res 500
-python scripts/run_neraca.py --config ../re-peat/sites/sugihan_lumpur/neraca.yaml --tier 1 --classes primary,secondary,tertiary --et-stress natural   # evaporation falls when the water table is deep
+python scripts/run_neraca.py --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml --tier 1 --classes primary,secondary,tertiary --k-multiplier 1,10,50,200,1000 --drawdown 0.5,1.2
+python scripts/run_neraca.py --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml --tier 2 --res 500
+python scripts/run_neraca.py --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml --tier 1 --classes primary,secondary,tertiary --et-stress natural   # evaporation falls when the water table is deep
 python -m pytest tests/test_neraca.py
 ```
 

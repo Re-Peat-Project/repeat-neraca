@@ -414,3 +414,62 @@ parameters:
     source: Apers et al. 2022 (wilting factor reaches 1 at -1.82 m natural, -2.85 m drained peat)
     confidence: medium
     note: water table depth at which evapotranspiration has fallen to zero (linear between et_stress_start and et_stress_end)
+  # ---- climatic water balance per sub-KHG (balance.py): WB = P (1 - interception) (1 - C) - ET -------------------
+  # Parameters of Bambang Kun Cahyono (UGM), taken as established by the project (2026-10-26). Values as carried in
+  # repeat-prioritisation/common/pipeline.py; see research_notes/gee_2021_kahayan_sebangau.md.
+  runoff_coefficient:
+    default: 0.12
+    range: [0.07, 0.18]
+    unit: "-"
+    scope: global
+    sampling: fixed
+    source: "Aditya & Cahyono 2018, measured on Pulau Padang (range 0.07-0.18), as cited in repeat-prioritisation; the 2021 Kahayan-Sebangau scripts used 0.25 as a placeholder"
+    confidence: medium
+  interception_tree:
+    default: 0.164
+    range: [0.0, 0.30]
+    unit: share of P
+    scope: global
+    sampling: fixed
+    source: Kahayan-Sebangau study 2021 (B.K. Cahyono), as cited in repeat-prioritisation; ESA WorldCover class 10 (tree cover)
+    confidence: medium
+  interception_mangrove:
+    default: 0.164
+    range: [0.0, 0.30]
+    unit: share of P
+    scope: global
+    sampling: fixed
+    source: as interception_tree; WorldCover class 95 (mangroves)
+    confidence: medium
+  interception_shrub:
+    default: 0.08
+    range: [0.0, 0.30]
+    unit: share of P
+    scope: global
+    sampling: fixed
+    source: as interception_tree; WorldCover class 20 (shrubland)
+    confidence: medium
+  interception_wetland:
+    default: 0.05
+    range: [0.0, 0.30]
+    unit: share of P
+    scope: global
+    sampling: fixed
+    source: as interception_tree; WorldCover class 90 (herbaceous wetland)
+    confidence: medium
+  interception_grass:
+    default: 0.03
+    range: [0.0, 0.30]
+    unit: share of P
+    scope: global
+    sampling: fixed
+    source: as interception_tree; WorldCover class 30 (grassland)
+    confidence: medium
+  interception_crop:
+    default: 0.03
+    range: [0.0, 0.30]
+    unit: share of P
+    scope: global
+    sampling: fixed
+    source: as interception_tree; WorldCover class 40 (cropland). Other classes (built-up, bare, water) intercept 0
+    confidence: medium

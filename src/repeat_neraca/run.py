@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Physical neraca air of one KHG, with no fitted parameter, compared with the observed water tables.
 
-  python scripts/run_neraca.py --config ../re-peat/sites/sugihan_lumpur/neraca.yaml --tier 1
-  python scripts/run_neraca.py --config ../re-peat/sites/sugihan_lumpur/neraca.yaml --tier 2 --res 500
-  python scripts/run_neraca.py --config ../re-peat/sites/kampar_gaung/neraca.yaml --tier 1 --tier 2 --drawdown 0.5,0.8,1.2,1.6,2.0
+  repeat-neraca-run --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml --tier 1
+  repeat-neraca-run --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml --tier 2 --res 500
+  repeat-neraca-run --config ../re-peat/sites/14.02-04-05.01_kampar_gaung/neraca.yaml --tier 1 --tier 2 --drawdown 0.5,0.8,1.2,1.6,2.0
 
 Question answered: with Sy, transmissivity, drain spacing, rain and evaporation taken from the registry and the data, and a canal level a
 given distance below the surface, how close is the simulated water table to what the SiTMAT stations record?
@@ -51,7 +51,7 @@ def main(argv=None):
                     help="rain and evaporation from forcing_daily.csv (file), read through repeat-common (direct), or direct when the config has a forcing_direct block (auto)")
     ap.add_argument("--peat-table", default="urzainki2020", choices=["urzainki2020", "tropical-small", "tropical-large"],
                     help="storage and transmissivity of the peat: the boreal-curve table of this repository (default) or the tropical exponential set of Urzainki et al. 2023 (small or large conductivity)")
-    ap.add_argument("--registry", default=None, help="registry file (default config/parameters.yaml)")
+    ap.add_argument("--registry", default=None, help="registry file (default: the registry in the package, repeat_neraca/parameters.yaml)")
     ap.add_argument("--out", default=None)
     a = ap.parse_args(argv)
     tiers = a.tier or [1]

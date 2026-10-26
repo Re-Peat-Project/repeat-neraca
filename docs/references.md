@@ -6,7 +6,7 @@ Checked 2026-10-16. **What was read:** the neraca air chapters of the Kahayan-Se
 
 | Source | What it says | Used here |
 |---|---|---|
-| Report eq. 4.6-4.10 (Sri Harto 2000; Andriesse 1988; Ritzema & Wosten 2002; Aditya & Cahyono 2018) | Rain-fed domed peat: `S = R - ET - Q`; runoff as a coefficient, `S = R(1 - C) - ET`, C = 0.07-0.18 (two months, Pulau Padang) | `common/indicators.py` (`u_wb_mean`, `u_deficit_months`), `repeat_neraca.bucket.balance_compare` |
+| Report eq. 4.6-4.10 (Sri Harto 2000; Andriesse 1988; Ritzema & Wosten 2002; Aditya & Cahyono 2018) | Rain-fed domed peat: `S = R - ET - Q`; runoff as a coefficient, `S = R(1 - C) - ET`, C = 0.07-0.18 (two months, Pulau Padang) | `common/indicators.py` (`u_wb_mean`, `u_deficit_months`), `repeat_neraca.balance` |
 | Report eq. 4.11 (Thompson, Benscoter & Waddington 2014) | Adds interception and a lateral flow term, `S = R - I - ET - wt`; interception 0-16.4% | interception by WorldCover class |
 | Report section 4.5.1 (after eq. 4.10) | In canalised peat the water table depends on rain, ET, **canal water level**, canal density, spacing, dimensions and "the performance of the flow-control structures"; the detailed balance is "the key" for water management | not built (needs canal levels) |
 | Report Table 5.10 | Sub-KHG balance 2010-2020: monthly mean 41-65 mm, 3.9-5.3 deficit months per year; the worst sub-KHG differs by metric (02 by mean balance, 16 by deficit frequency) | compare `bucket_reports/*_balance_compare.md` |
