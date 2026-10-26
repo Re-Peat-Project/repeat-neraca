@@ -39,9 +39,10 @@ def test_a_rising_water_table_against_a_negative_balance_adds_to_the_deficit():
     assert khg_deficit(f, obs, 10.0, "X")["deficit_mm"] == pytest.approx(40.0)
 
 
-def test_wapor_gives_the_other_bound_only_if_it_covers_every_day():
+def test_wapor_gives_the_other_bound_only_if_asked_and_it_covers_every_day():
     f, obs = _case(net=-1.0, wapor=-2.0)
-    r = khg_deficit(f, obs, 10.0, "X")
+    assert khg_deficit(f, obs, 10.0, "X")["deficit_mm_high"] < 200 - 10.0          # off by default
+    r = khg_deficit(f, obs, 10.0, "X", {"wapor_bound": True})
     assert r["e_wapor_covers_period"] and r["deficit_mm_high"] == pytest.approx(200 - 10.0)
     f.loc[f.index[-3:], "E_wapor_mm"] = np.nan
     assert not khg_deficit(f, obs, 10.0, "X")["e_wapor_covers_period"]

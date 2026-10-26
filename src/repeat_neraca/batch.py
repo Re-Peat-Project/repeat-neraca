@@ -60,7 +60,7 @@ def main(argv=None):
     g.add_argument("--selected", action="store_true")
     g.add_argument("--all", action="store_true")
     ap.add_argument("--rain", default="chirps")
-    ap.add_argument("--et", default="wapor,mod16")
+    ap.add_argument("--et", default="mod16,wapor")
     ap.add_argument("--start", default="2018-01-01")
     ap.add_argument("--end", required=True, help="exclusive; the first day after the last complete dekad of every product used")
     ap.add_argument("--workers", type=int, default=4)

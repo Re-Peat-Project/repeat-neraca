@@ -1,5 +1,7 @@
 # Neraca air: the physical water balance of a KHG
 
+> The adopted neraca air method is in [neraca-air-method.md](neraca-air-method.md). This page records the physical model and the first KHG deficit (choices of 2026-10-20; the WaPOR bound of the deficit band is off by default since 2026-10-26).
+
 Status 2026-10-16. Neraca air is built here, from physical parameters only, and compared with the observed water tables. Nothing is fitted. It replaced the bucket-model experiments (retired 2026-10-26, record in `bucket_experiments_README.md`). Since 2026-10-26 it is a diagnostic: the sub-KHG output is the climatic balance (`repeat_neraca.balance`, [method-plan.md](method-plan.md)); the ranking in `repeat-prioritisation` can read the result through its `extra_indicators` file.
 
 ## What it is

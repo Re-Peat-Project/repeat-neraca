@@ -6,8 +6,8 @@ Window 2026-06-01 to 2026-09-30; sub-KHG with at least 3 SiTMAT stations (each w
 
 | against deficit_mm | Spearman | units |
 |---|---|---|
-| u_wb_mean | -0.53 | 9 |
-| u_deficit_months | 0.22 | 9 |
+| u_wb_mean | 0.32 | 9 |
+| u_deficit_months | 0.49 | 9 |
 | wb_2026_mm | -0.98 | 9 |
 
 Deficit across these units: 123 to 277 mm (median 181); water table change +8 to +14 cm; stations per unit 4-9.

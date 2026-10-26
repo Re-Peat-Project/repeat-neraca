@@ -58,3 +58,17 @@ def test_a_partly_covered_month_does_not_count(inputs, tmp_path):
     d.to_csv(inputs / "balance_wapor_dekad.csv", index=False)
     r = B.run(inputs, tmp_path / "out", "chirps", ["wapor"], Registry.load())
     assert r["years"] == [2019]
+
+
+def test_flag_tests_et_itself_not_balances_that_share_rain(tmp_path):
+    """Rain differs a lot between units and the two ET products order the units oppositely: the balances agree (shared
+    rain), but the ET products do not, so the order is not trusted."""
+    units = [f"U{i}" for i in range(12)]
+    _write(tmp_path / "balance_chirps_dekad.csv", units, lambda u, d: 5.0 + 1.0 * int(u[1:]))
+    _write(tmp_path / "balance_wapor_dekad.csv", units, lambda u, d: 3.0 + 0.05 * int(u[1:]))
+    _write(tmp_path / "balance_mod16_dekad.csv", units, lambda u, d: 3.0 - 0.05 * int(u[1:]))
+    pd.DataFrame({"unit_id": units, "area_km2": 10.0, "wc_10": 0.5}).to_csv(tmp_path / "units_landcover.csv", index=False)
+    r = B.run(tmp_path, tmp_path / "out", "chirps", ["mod16", "wapor"], Registry.load(), rain_mode="unit")
+    t = pd.read_csv(tmp_path / "out" / "neraca_balance_unit.csv")
+    assert t["u_wb_mean"].corr(t["wb_mean_wapor"], method="spearman") > 0.99      # the balances agree
+    assert list(r["et_rho"].values())[0] < 0 and r["stable_ok"] == 0                 # the ET products do not

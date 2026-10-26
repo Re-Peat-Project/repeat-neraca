@@ -13,16 +13,19 @@ Choices (agreed 2026-10-20):
   Sy       a constant 0.15, band 0.10 to 0.20. The Urzainki et al. (2020) peat tables are not used here: they are built from boreal
            retention curves (Paivanen 1973; see testbed/data/NOTICE-urzainki2020.md), so they are only an option once tropical peat
            has adopted them or tropical curves replace them.
-  E        ERA5 is the central value. WaPOR (about 300 m, an actual-evaporation product) gives the other bound where it covers every day of
-           the window. Finer data (higher-resolution evaporation and rain, per-sub-KHG) may narrow the band later.
-  band     deficit_mm_low and deficit_mm_high are the smallest and largest deficit over {ERA5, WaPOR} x {Sy 0.10, 0.15, 0.20}.
+  E        ERA5 is the central value (kept 2026-10-26: its evaporation totals are within -6 to +2 % of MOD16, whose level lies in the
+           eddy-covariance range for tropical peat, and its rain is as close to IMERG as CHIRPS; docs/reports/forcing_products.md).
+           WaPOR is no longer a bound by default (`wapor_bound`): it runs 20-30 % below the eddy-covariance range, and the cached
+           2026 values were superseded upstream for six dekads.
+  band     deficit_mm_low and deficit_mm_high are the smallest and largest deficit over Sy 0.10, 0.15, 0.20 (and WaPOR if wapor_bound).
 """
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 
-DEFAULTS = {"start": "06-01", "end": "10-31", "sy": 0.15, "sy_band": [0.10, 0.20], "edge_days": 7, "min_station_coverage": 0.5}
+DEFAULTS = {"start": "06-01", "end": "10-31", "sy": 0.15, "sy_band": [0.10, 0.20], "edge_days": 7, "min_station_coverage": 0.5,
+            "wapor_bound": False}
 
 COLUMNS = ["khg_id", "period_start", "period_end", "n_days", "valid_day_share", "n_stations", "area_km2", "sy", "net_balance_mm",
            "obs_depth_start_cm", "obs_depth_end_cm", "obs_change_cm", "storage_change_mm", "deficit_mm", "deficit_mm_low",
@@ -66,7 +69,7 @@ def khg_deficit(forcing: pd.DataFrame, obs: pd.DataFrame, area_km2: float, khg_i
     sy = float(c["sy"])
     variants = [_deficit(net, dz, s) for s in {sy, *map(float, c["sy_band"])}]
     wapor_ok = "E_wapor_mm" in w and bool(w["E_wapor_mm"].notna().all()) and bool(valid.all())
-    if wapor_ok:
+    if wapor_ok and c["wapor_bound"]:
         net_w = float((w["P_era5_mm"] - w["E_wapor_mm"]).sum())
         variants += [_deficit(net_w, dz, s) for s in {sy, *map(float, c["sy_band"])}]
     central = _deficit(net, dz, sy)
@@ -77,4 +80,4 @@ def khg_deficit(forcing: pd.DataFrame, obs: pd.DataFrame, area_km2: float, khg_i
             "obs_change_cm": dz, "storage_change_mm": sy * dz * 10.0, "deficit_mm": central, "deficit_mm_low": float(min(variants)),
             "deficit_mm_high": float(max(variants)), "deficit_m3": central / 1000.0 * area_km2 * 1e6,
             "deficit_months": int((month_net < 0).sum()), "evaporation_source": "ERA5", "e_wapor_covers_period": wapor_ok,
-            "method": "max(0, -sum(P-E) - Sy*dz_obs); Sy constant, band 0.10-0.20; ERA5 central, WaPOR bound where it covers the window"}
+            "method": "max(0, -sum(P-E) - Sy*dz_obs); ERA5 P and E; Sy 0.15, band 0.10-0.20" + ("; WaPOR bound" if c["wapor_bound"] else "")}

@@ -1,5 +1,7 @@
 # Neraca air: plan to finalise the method
 
+> **Status 2026-10-26: done.** The adopted method, the three decisions and their evidence are in [neraca-air-method.md](neraca-air-method.md) (sections 2 and 5). The open choices of section 4 below were settled there: C and interception as established; rain as KHG mean; MOD16 as central ET; stability tested against a random order at p < 0.01 on ET agreement and year stability; ERA5 kept for the deficit, WaPOR bound off. This plan is kept as the record of how the method was reached.
+
 Draft for the team, 2026-10-26. Sources: the 2021 Kahayan-Sebangau Earth Engine scripts ([research_notes/gee_2021_kahayan_sebangau.md](../research_notes/gee_2021_kahayan_sebangau.md)), a review of those scripts done in an earlier chat (claims from it that were not checked are marked *not checked*), the results so far ([neraca-air.md](neraca-air.md), [bucket_reports/](bucket_reports/)) and the earlier plan in `../neraca_air_recap.md`.
 
 ## 1. Where the method stands

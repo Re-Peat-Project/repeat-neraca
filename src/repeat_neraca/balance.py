@@ -19,8 +19,12 @@ Questions the report answers, as in the earlier `balance_compare` (docs/bucket_r
   1. how much the sub-KHG differ against how much the ET sources differ,
   2. whether the sources rank the sub-KHG alike (Spearman of u_wb_mean),
   3. whether the order is stable from year to year (Spearman of yearly mean WB between all pairs of years).
-`balance_stable_ok` is 1 when the median year-to-year Spearman and, with several ET sources, the smallest source-to-source
-Spearman are both at least MIN_STABILITY (provisional threshold, not agreed with the team).
+`balance_stable_ok` (docs/reports/balance_design.md for the evidence) is 1 when, across units,
+  - the ET sources agree on the order of ET itself (Spearman of the unit means of ET; rain is left out because the sources share
+    it, which made balances look consistent when the ET products were not), and
+  - the yearly balance keeps its order (median Spearman over all pairs of complete years),
+each above the 99th percentile of the same statistic for a random order of the same number of units (`null_quantiles`, p < 0.01).
+With one ET source only the year test applies. Fewer than 5 units: left empty.
 
 Writes into --out: neraca_balance_unit.csv, neraca_balance_monthly.csv, neraca_balance.md, registry_snapshot.json
 (the parameter values used, with a hash).
@@ -38,7 +42,7 @@ from scipy.stats import spearmanr
 
 from .params import Registry
 
-MIN_STABILITY = 0.5
+NULL_Q = 0.99          # stability tests against a random order of units at p < 0.01
 WC_INTERCEPTION = {10: "interception_tree", 95: "interception_mangrove", 20: "interception_shrub",
                    90: "interception_wetland", 30: "interception_grass", 40: "interception_crop"}
 
@@ -95,20 +99,40 @@ def _rho(a, b) -> float:
     return float(spearmanr(a[ok], b[ok]).correlation)
 
 
+def null_quantiles(n: int, years: int = 8, draws: int = 10000, q: float = NULL_Q, seed: int = 0) -> tuple[float, float]:
+    """q-quantiles, for n units in a random order, of one Spearman between two orders and of the median Spearman over all
+    pairs of `years` yearly orders (simulation, fixed seed)."""
+    rng = np.random.default_rng(seed)
+    iu = np.triu_indices(years, 1)
+    one, med = np.empty(draws), np.empty(draws)
+    for i in range(draws):
+        c = np.corrcoef(rng.random((years, n)).argsort(axis=1).argsort(axis=1).astype(float))[iu]
+        one[i], med[i] = c[0], np.median(c)
+    return float(np.quantile(one, q)), float(np.quantile(med, q))
+
+
 def year_stability(wb: pd.DataFrame, years: list[int]) -> list[float]:
     yearly = wb[wb.index.year.isin(years)].groupby(lambda p: p.year).mean()
     return [_rho(yearly.loc[a], yearly.loc[b]) for a, b in combinations(years, 2)]
 
 
-def run(inputs: Path, out: Path, rain: str, ets: list[str], reg: Registry) -> dict:
+def run(inputs: Path, out: Path, rain: str, ets: list[str], reg: Registry, rain_mode: str = "khg") -> dict:
     out.mkdir(parents=True, exist_ok=True)
     lc = pd.read_csv(inputs / "units_landcover.csv", dtype={"unit_id": str})
     icpt = interception(lc, reg)
     c = float(reg["runoff_coefficient"])
     P, npx_p = monthly(product_file(inputs, rain))
+    Es = {}
+    if rain_mode == "khg":           # one rain series for every unit: the area-weighted KHG mean of the month
+        w = lc.set_index("unit_id")["area_km2"].reindex(P.columns)
+        P = pd.DataFrame(np.repeat(((P * w).sum(axis=1, min_count=1) / P.notna().mul(w).sum(axis=1)).values[:, None], P.shape[1], axis=1),
+                         index=P.index, columns=P.columns).where(P.notna().all(axis=1), axis=0)
+    elif rain_mode != "unit":
+        raise ValueError(f"rain_mode must be unit or khg (got {rain_mode})")
     wbs, npx, pme = {}, {}, {}
     for et in ets:
         E, npx[et] = monthly(product_file(inputs, et))
+        Es[et] = E
         wbs[et] = wb_monthly(P, E, icpt, c)
         pme[et] = wb_monthly(P, E, icpt * 0, 0.0)
     # years complete for every source, so the sources are compared on the same months
@@ -120,7 +144,11 @@ def run(inputs: Path, out: Path, rain: str, ets: list[str], reg: Registry) -> di
     stab = {et: year_stability(wbs[et], years) for et in ets}
     src_rho = {(a, b): _rho(ind[a]["u_wb_mean"], ind[b]["u_wb_mean"].reindex(ind[a].index)) for a, b in combinations(ets, 2)}
     med = float(np.nanmedian(stab[central])) if stab[central] else float("nan")
-    ok = np.isfinite(med) and med >= MIN_STABILITY and all(np.isfinite(r) and r >= MIN_STABILITY for r in src_rho.values())
+    et_mean = {et: Es[et][Es[et].index.year.isin(years)].mean() for et in ets}
+    et_rho = {(a, b): _rho(et_mean[a], et_mean[b].reindex(et_mean[a].index)) for a, b in combinations(ets, 2)}
+    n_units = len(ind[central])
+    q_one, q_med = null_quantiles(n_units, len(years)) if n_units >= 5 and len(years) >= 2 else (np.nan, np.nan)
+    ok = np.isfinite(med) and med >= q_med and all(np.isfinite(r) and r >= q_one for r in et_rho.values())
 
     t = ind[central].copy()
     w = wbs[central][wbs[central].index.year.isin(years)]
@@ -167,8 +195,13 @@ def run(inputs: Path, out: Path, rain: str, ets: list[str], reg: Registry) -> di
     for et in ets:
         s = stab[et]
         L.append(f"| {et} | {len(s)} | {np.nanmin(s) if s else float('nan'):.2f} | {np.nanmedian(s) if s else float('nan'):.2f} |")
-    L += ["", (f"`balance_stable_ok` = {int(ok)} (median year-to-year Spearman of {central} {med:.2f}"
-                + "".join(f"; {x} vs {y} {r:.2f}" for (x, y), r in src_rho.items()) + f"; threshold {MIN_STABILITY} for each, provisional)."
+    forest = (lc.set_index("unit_id").get("wc_10", 0) + lc.set_index("unit_id").get("wc_95", 0)).reindex(t.index)
+    L += ["", (f"`balance_stable_ok` = {int(ok)}: ET order, " + "; ".join(f"{x} vs {y} {r:.2f}" for (x, y), r in et_rho.items())
+                + f" (needs {q_one:.2f}); median year-to-year Spearman of {central} {med:.2f} (needs {q_med:.2f}); thresholds are the "
+                f"99th percentiles for a random order of {n_units} units."
+                + f" Spearman with the forest share (WorldCover tree cover + mangroves): u_wb_mean {_rho(t['u_wb_mean'], forest):.2f}, "
+                f"P - ET {_rho(t['p_minus_et_mean_mm'], forest):.2f}; the interception term is fixed by land cover, so a large first value "
+                "with a small second one means the order of units comes from land cover, not from water."
                if len(t) >= 5 else f"{len(t)} unit(s): no order between units to check, `balance_stable_ok` left empty."), "",
           "## 4. Calendar: KHG-mean WB by month (mm), central source", "",
           "| year | " + " | ".join(f"{m:02d}" for m in range(1, 13)) + " | deficit months |", "|---" * 14 + "|"]
@@ -180,7 +213,7 @@ def run(inputs: Path, out: Path, rain: str, ets: list[str], reg: Registry) -> di
         f"{p} {t[f'n_px_{p}'].min():.0f}-{t[f'n_px_{p}'].max():.0f}" for p in [rain, *ets]) + "."]
     text = "\n".join(L) + "\n"
     (out / "neraca_balance.md").write_text(text, encoding="utf-8")
-    return {"years": years, "stable_ok": int(ok) if len(t) >= 5 else None, "median_year_rho": med, "source_rho": src_rho, "text": text}
+    return {"years": years, "stable_ok": int(ok) if len(t) >= 5 else None, "et_rho": et_rho, "thresholds": (q_one, q_med), "median_year_rho": med, "source_rho": src_rho, "text": text}
 
 
 def main(argv=None):
@@ -188,11 +221,12 @@ def main(argv=None):
     ap.add_argument("--inputs", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--rain", default="chirps")
-    ap.add_argument("--et", default="wapor,mod16")
+    ap.add_argument("--et", default="mod16,wapor", help="ET products, the first is central (MOD16: its level is within the eddy-covariance range, docs/reports/forcing_products.md)")
+    ap.add_argument("--rain-mode", choices=["unit", "khg"], default="khg", help="KHG-mean rain for every unit (default: CHIRPS and IMERG disagree on the order of units, docs/reports/forcing_products.md), or rain per unit")
     ap.add_argument("--registry", default=None)
     a = ap.parse_args(argv)
     reg = Registry.load(a.registry) if a.registry else Registry.load()
-    r = run(Path(a.inputs), Path(a.out), a.rain, [s for s in a.et.split(",") if s], reg)
+    r = run(Path(a.inputs), Path(a.out), a.rain, [s for s in a.et.split(",") if s], reg, a.rain_mode)
     print(r["text"])
 
 
