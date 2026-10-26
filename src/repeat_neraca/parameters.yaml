@@ -416,7 +416,7 @@ parameters:
     note: water table depth at which evapotranspiration has fallen to zero (linear between et_stress_start and et_stress_end)
   # ---- climatic water balance per sub-KHG (balance.py): WB = P (1 - interception) (1 - C) - ET -------------------
   # Parameters of Bambang Kun Cahyono (UGM), taken as established by the project (2026-10-26). Values as carried in
-  # repeat-prioritisation/common/pipeline.py; see research_notes/gee_2021_kahayan_sebangau.md.
+  # repeat-prioritisation/src/repeat_prioritisation/common/pipeline.py; see research_notes/gee_2021_kahayan_sebangau.md.
   runoff_coefficient:
     default: 0.12
     range: [0.07, 0.18]

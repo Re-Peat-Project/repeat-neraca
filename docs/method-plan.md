@@ -10,7 +10,7 @@ Draft for the team, 2026-10-26. Sources: the 2021 Kahayan-Sebangau Earth Engine 
 |---|---|---|
 | KHG deficit (`deficit.py`) | Water the managed system supplies to hold the observed water table, June to October: `max(0, -Σ(P - E) - Sy Δz_obs)` | Works. Sugihan-Lumpur 290 mm (227-296), Kampar-Gaung 7 mm (0-12). 2026 only, since the SiTMAT stations cover only 2026 |
 | Physical model, tiers 1 and 2 | Water table from P - ET, canals as drains | Timing right at KHG level, amplitude wrong. Every cell follows the same curve, so per sub-KHG `neraca_skill_ok = 0` |
-| Climatic balance per sub-KHG (the 2021 method) | `WB = P (1 - I) (1 - C) - ET`, monthly, in `repeat-prioritisation/common/indicators.py` and `bucket/balance_compare.py` | Tested on 2019-2021. The sub-KHG order depends on the source (TerraClimate against ERA5, ρ = 0.12 at Sugihan-Lumpur). TerraClimate's order changes from year to year at Kampar-Gaung (median ρ 0.13); ERA5 and WaPOR hold better (median ρ 0.67-0.91) |
+| Climatic balance per sub-KHG (the 2021 method) | `WB = P (1 - I) (1 - C) - ET`, monthly, in `repeat-prioritisation/src/repeat_prioritisation/common/indicators.py` and `bucket/balance_compare.py` | Tested on 2019-2021. The sub-KHG order depends on the source (TerraClimate against ERA5, ρ = 0.12 at Sugihan-Lumpur). TerraClimate's order changes from year to year at Kampar-Gaung (median ρ 0.13); ERA5 and WaPOR hold better (median ρ 0.67-0.91) |
 
 The third line descends from the 2021 scripts, which compute `pr - aet/10 - C pr` on TerraClimate with C = 0.25. One script uses 0.35 for ten of the sixteen sub-KHG, with no reason given. Two upgrades suggested in the review already exist here: storage converted to water table through Sy (tier 1, `deficit.py`), and a canal outflow term (tiers 1 and 2).
 
@@ -31,13 +31,13 @@ Two outputs, kept apart as in data contract C5.
 WB_u,t = P_u,t (1 - I_u) (1 - C) - ET_u,t        C = 0.12, I_u = interception share of the unit's land cover (0 % open land to 16.4 % forest)
 ```
 
-These are the values already in `repeat-prioritisation/common/pipeline.py`. C = 0.12 is the measured Pulau Padang value (Aditya & Cahyono 2018); the 2021 scripts' 0.25 was a placeholder by their own comment ("bisa diganti jika tahu nilai C"). P - ET is written beside WB.
+These are the values already in `repeat-prioritisation/src/repeat_prioritisation/common/pipeline.py`. C = 0.12 is the measured Pulau Padang value (Aditya & Cahyono 2018); the 2021 scripts' 0.25 was a placeholder by their own comment ("bisa diganti jika tahu nilai C"). P - ET is written beside WB.
 
 for each sub-KHG `u` and dekad `t` over several years, summarised as a monthly calendar of surplus and deficit. The ranking indicators are dry-season cumulative WB and the number of deficit months, as a climatology over all years with their year-to-year spread. They enter the ranking only if they pass the stability check V4 (section 5).
 
 The physical tiers remain a diagnostic of why the observed water table stays up (supply, canal level). They stay off the ranking path until a supply term exists (`neraca-air.md`, "Not done yet", item 2).
 
-National stage 3 (`repeat-prioritisation/national/stage3.py`) uses the TerraClimate deficit and rain, which end in 2024-12. Moving it to the same series is a separate decision. It covers 865 KHG, so it runs as a per-KHG reduction, and `scripts/check_era5_vs_terraclimate.py` shows how such a comparison was done before.
+National stage 3 (`repeat-prioritisation/src/repeat_prioritisation/national/stage3.py`) uses the TerraClimate deficit and rain, which end in 2024-12. Moving it to the same series is a separate decision. It covers 865 KHG, so it runs as a per-KHG reduction, and `scripts/check_era5_vs_terraclimate.py` shows how such a comparison was done before.
 
 ## 3. Data, all through Earth Engine
 
@@ -115,7 +115,7 @@ Status 2026-10-26: the bucket package is retired, the GEE fetcher, `balance.py` 
 | `export_inputs.py` station part (`stations.csv`, `stations_daily.csv`) | the deficit and tiers 1-2 | `src/repeat_neraca/stations.py`, reading `repeat-sitmat` output through `repeat_common.tma` |
 | `export_inputs.py` forcing part (`forcing_daily.csv`, ERA5 via cache) | the deficit and tiers 1-2 | replaced by `repeat_common.fetch_gee_balance` |
 
-Then remove: `bucket/` (13 modules), `tests/test_canal_level.py`, `test_neraca_model.py`, `test_sentinel1.py`, the `experiments` extra in `pyproject.toml`, the `neraca_experiments.yaml` site configs, and the bucket inputs of `repeat-prioritisation/subkhg/report.py` (it reads `neraca_report.json`, `neraca_covariates.md` and `neraca_calibration.png` from the bucket run). The Sentinel-1 study stays documented in its report for later.
+Then remove: `bucket/` (13 modules), `tests/test_canal_level.py`, `test_neraca_model.py`, `test_sentinel1.py`, the `experiments` extra in `pyproject.toml`, the `neraca_experiments.yaml` site configs, and the bucket inputs of `repeat-prioritisation/src/repeat_prioritisation/subkhg/report.py` (it reads `neraca_report.json`, `neraca_covariates.md` and `neraca_calibration.png` from the bucket run). The Sentinel-1 study stays documented in its report for later.
 
 **Physical tiers 1 and 2:** keep, frozen, as the diagnostic behind the deficit (why the water table is held). No further development without a supply term, and that term cannot be checked with one season of stations.
 

@@ -62,7 +62,7 @@ WB(u, month) = P_KHG (1 - I_u) (1 - C) - ET_u          I_u = Σ_class share(u, c
 
 - `P_KHG`: area-weighted KHG mean of the month, the same for every unit (`--rain-mode unit` keeps rain per unit). `ET_u`: MOD16, with WaPOR as second source.
 - A month counts when all its dekads are fully covered for both P and ET; a year when all 12 months do. Over the complete years:
-  - `u_wb_mean`: mean monthly WB, mm/month; `u_deficit_months`: months with WB < 0, per year (definitions of `repeat-prioritisation/common/indicators.py`);
+  - `u_wb_mean`: mean monthly WB, mm/month; `u_deficit_months`: months with WB < 0, per year (definitions of `repeat-prioritisation/src/repeat_prioritisation/common/indicators.py`);
   - `p_minus_et_mean_mm`: P − ET without C and I; between units of a KHG this is the ET signal;
   - `wb_year_sd_mm`: spread of the yearly mean between years.
 - `balance_stable_ok` = 1 when (a) MOD16 and WaPOR order the units' mean ET alike and (b) the yearly balance keeps its order (median Spearman over all pairs of complete years), each above the 99th percentile of the same statistic for a random order of the same number of units (simulated, `balance.null_quantiles`). Fewer than 5 units: empty.
