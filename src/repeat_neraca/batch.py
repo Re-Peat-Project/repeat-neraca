@@ -40,19 +40,23 @@ def run_one(khg: str, a, reg: Registry) -> dict:
     from repeat_common import fetch_gee_balance as F, khg as K
     r = K.lookup(khg)
     kf = K.folder(khg, create=True)
-    whole = not (kf / "02_delineation" / "subkhg_units.gpkg").exists()
+    dem = getattr(a, "dem", None)
+    nr = K.step_dir(khg, "03_neraca", dem)                  # 03_neraca/<dem>/ for a DEM variant, else 03_neraca/
+    whole = not (K.step_dir(khg, "02_delineation", dem) / "subkhg_units.gpkg").exists()
+    if whole and dem:
+        raise SystemExit(f"{r['khg_code']}: no sub-KHG units for the {dem} variant (02_delineation/{dem}/); delineate first")
     args = ["--khg", r["khg_code"], "--products", ",".join([a.rain, *a.et]), "--start", a.start, "--end", a.end, "--workers", str(a.workers)]
-    F.main(args + (["--whole-khg"] if whole else []))
-    inputs = kf / "03_neraca" / "inputs" / ("khg_level" if whole else "")
-    out = kf / "03_neraca" / "runs" / ("balance_khg_level" if whole else "balance")
+    F.main(args + (["--whole-khg"] if whole else []) + (["--dem", dem] if dem else []))
+    inputs = nr / "inputs" / ("khg_level" if whole else "")
+    out = nr / "runs" / ("balance_khg_level" if whole else "balance")
     res = BAL.run(inputs, out, a.rain, a.et, reg)
     t = pd.read_csv(out / "neraca_balance_unit.csv")
     try:                                              # map layers next to the balance; a missing geometry must not stop the batch
         from .maps import write_map
-        write_map(kf)
+        write_map(kf, dem)
     except (SystemExit, Exception) as e:          # noqa: BLE001
         print(f"{r['khg_code']}: no neraca map ({e})")
-    return {"khg_code": r["khg_code"], "name": r["name"], "units": "khg" if whole else "sub-KHG", "n_units": len(t),
+    return {"khg_code": r["khg_code"], "dem": dem or "", "name": r["name"], "units": "khg" if whole else "sub-KHG", "n_units": len(t),
             "years": f"{res['years'][0]}-{res['years'][-1]}", "u_wb_mean_khg": round(float(t["u_wb_mean"].mean()), 1),
             "u_deficit_months_khg": round(float(t["u_deficit_months"].mean()), 2), "median_year_rho": round(res["median_year_rho"], 2),
             "balance_stable_ok": res["stable_ok"], "status": "ok", "folder": str(out)}
@@ -69,6 +73,7 @@ def main(argv=None):
     ap.add_argument("--start", default="2018-01-01")
     ap.add_argument("--end", required=True, help="exclusive; the first day after the last complete dekad of every product used")
     ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--dem", help="DEM variant (lidar, deltadtm, demnas): the units of 02_delineation/<dem>/, results in 03_neraca/<dem>/")
     a = ap.parse_args(argv)
     a.et = [s for s in a.et.split(",") if s]
     from repeat_common import khg as K
@@ -81,7 +86,9 @@ def main(argv=None):
             return K.lookup(k)["khg_code"]
         except KeyError:
             return k
-    old = old[~old["khg_code"].map(code).isin(done)]            # rows of other KHG are kept
+    if "dem" not in old:
+        old["dem"] = ""
+    old = old[~(old["khg_code"].map(code).isin(done) & (old["dem"].fillna("") == (a.dem or "")))]   # rows of other KHG and variants are kept
     rows = []
     for khg in khg_list(a):
         print(f"=== {khg}", flush=True)

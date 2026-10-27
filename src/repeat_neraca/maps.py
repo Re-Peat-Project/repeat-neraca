@@ -27,9 +27,9 @@ DRY_MONTHS = (7, 8, 9, 10)
 TMA_LIMIT_CM = 40
 
 
-def _units(kf: Path, n_rows: int):
+def _units(kf: Path, n_rows: int, dem: str | None = None):
     import geopandas as gpd
-    sub = kf / "02_delineation" / "subkhg_units.gpkg"
+    sub = kf / "02_delineation" / (f"{dem}/" if dem else "") / "subkhg_units.gpkg"
     if sub.exists():
         return gpd.read_file(sub)[["unit_id", "geometry"]], "balance"
     khg = kf / "00_inputs" / "khg.gpkg"
@@ -54,15 +54,18 @@ def station_summary(stations: pd.DataFrame, daily: pd.DataFrame, start=None, end
     return stations.merge(pd.DataFrame(rows), on="station_id", how="inner")
 
 
-def write_map(kf: Path) -> Path:
+def write_map(kf: Path, dem: str | None = None) -> Path:
+    """``dem``: the variant whose units and balance are mapped (02_delineation/<dem>/, 03_neraca/<dem>/runs/balance/); the KHG
+    deficit and the SiTMAT stations (03_neraca/runs/deficit, 03_neraca/inputs) are shared by every variant."""
     import geopandas as gpd
     kf = Path(kf)
-    unit_csv = next((p for p in (kf / "03_neraca" / "runs" / "balance" / "neraca_balance_unit.csv",
-                                 kf / "03_neraca" / "runs" / "balance_khg_level" / "neraca_balance_unit.csv") if p.exists()), None)
+    nr = kf / "03_neraca" / dem if dem else kf / "03_neraca"
+    unit_csv = next((p for p in (nr / "runs" / "balance" / "neraca_balance_unit.csv",
+                                 nr / "runs" / "balance_khg_level" / "neraca_balance_unit.csv") if p.exists()), None)
     if unit_csv is None:
         raise SystemExit(f"{kf.name}: no neraca_balance_unit.csv; run repeat-neraca-balance first")
     t = pd.read_csv(unit_csv, dtype={"unit_id": str})
-    units, run = _units(kf, len(t))
+    units, run = _units(kf, len(t), dem)
     if units["unit_id"].isna().all():
         units["unit_id"] = t["unit_id"].iloc[0]
     g = units.merge(t, on="unit_id", how="left")
@@ -106,8 +109,9 @@ def write_map(kf: Path) -> Path:
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--khg", required=True, help="KHG work folder, e.g. _khg/16.02.01_sugihan_lumpur")
+    ap.add_argument("--dem", help="DEM variant (lidar, deltadtm, demnas): its units and balance")
     a = ap.parse_args(argv)
-    print(write_map(Path(a.khg)))
+    print(write_map(Path(a.khg), a.dem))
 
 
 if __name__ == "__main__":
