@@ -47,6 +47,11 @@ def run_one(khg: str, a, reg: Registry) -> dict:
     out = kf / "03_neraca" / "runs" / ("balance_khg_level" if whole else "balance")
     res = BAL.run(inputs, out, a.rain, a.et, reg)
     t = pd.read_csv(out / "neraca_balance_unit.csv")
+    try:                                              # map layers next to the balance; a missing geometry must not stop the batch
+        from .maps import write_map
+        write_map(kf)
+    except (SystemExit, Exception) as e:          # noqa: BLE001
+        print(f"{r['khg_code']}: no neraca map ({e})")
     return {"khg_code": r["khg_code"], "name": r["name"], "units": "khg" if whole else "sub-KHG", "n_units": len(t),
             "years": f"{res['years'][0]}-{res['years'][-1]}", "u_wb_mean_khg": round(float(t["u_wb_mean"].mean()), 1),
             "u_deficit_months_khg": round(float(t["u_deficit_months"].mean()), 2), "median_year_rho": round(res["median_year_rho"], 2),

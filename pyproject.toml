@@ -25,6 +25,7 @@ repeat-neraca-balance = "repeat_neraca.balance:main"       # climatic balance pe
 repeat-neraca-batch = "repeat_neraca.batch:main"           # fetch + balance for a list of KHG, or all
 repeat-neraca-stations = "repeat_neraca.stations:main"     # SiTMAT station files
 repeat-neraca-run = "repeat_neraca.run:main"               # KHG deficit and the physical model (diagnostic)
+repeat-neraca-map = "repeat_neraca.maps:main"              # map layers: balance per sub-KHG, SiTMAT stations
 
 [tool.setuptools.packages.find]
 where = ["src"]

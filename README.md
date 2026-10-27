@@ -101,6 +101,7 @@ In the KHG work folder `_khg/<khg>/03_neraca/`:
 | `runs/balance/neraca_balance_monthly.csv` | `month, unit_id, WB_mm, et_source` |
 | `runs/balance/neraca_balance.md` | spread, ET agreement, year stability, forest-share check, KHG calendar of monthly WB |
 | `runs/balance/registry_snapshot.json` | parameter values used, with a hash |
+| `runs/balance/neraca_map.gpkg` | map layers (`repeat-neraca-map --khg <folder>`, also written by the batch): `neraca_units` (sub-KHG polygons with the balance, monthly climatology `wb_m01`-`wb_m12`, dry-season mean `wb_dry_mm`, KHG deficit; `order_ok` = 0 means grey the values out, do not rank them), `neraca_stations` (SiTMAT water table in the deficit window: start, end, change, deepest, share of days deeper than 40 cm), `neraca_monthly` (table). No water-table surface: the gridded model failed the station check |
 | `inputs/stations.csv`, `inputs/stations_daily.csv` | SiTMAT stations; daily depth (cm, positive down) |
 | `runs/deficit/neraca_khg.csv` | KHG deficit: window, `n_stations`, `net_balance_mm`, `obs_change_cm`, `deficit_mm` (`_low`, `_high`), `deficit_m3`, `deficit_months` |
 
