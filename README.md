@@ -67,9 +67,14 @@ repeat-neraca-balance --inputs $REPEAT_KHG/16.02.01_sugihan_lumpur/03_neraca/inp
 repeat-neraca-stations --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml
 repeat-neraca-run --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml --tier 1 --classes primary,secondary,tertiary \
     --out $REPEAT_KHG/16.02.01_sugihan_lumpur/03_neraca/runs/deficit
+
+# groundwater model (in development): baseline with managed land held at 0.4 m, then repeat-pump's blocks and pumping as scenarios
+C="--khg 15.05-07-10.01 --dem lidar --start 2025-11-01 --end 2026-10-01 --et mod16nrt --drawdown 1.2 --peat-base --depth-fallback bbsdlp --res 100 --peat-table tropical-large --managed-target 0.4 --fetch"
+repeat-neraca-model $C; repeat-neraca-model $C --blocks pump; repeat-neraca-model $C --blocks pump --supply pump
+python scripts/compare_scenarios.py --baseline <run folder> --scenario <run folder> ... --out docs/reports/scenarios_<khg>.md
 ```
 
-`--end` is the first day after the last complete dekad of the products used. A KHG without `02_delineation/subkhg_units.gpkg` runs as one unit (inputs in `inputs/khg_level/`, results in `runs/balance_khg_level/`). Options of the balance: `--et` (default `mod16,wapor`, the first is central), `--rain-mode` (default `khg`; `unit` keeps rain per sub-KHG). `scripts/run_neraca.py` is the same as `repeat-neraca-run`.
+`--end` is the first day after the last complete dekad of the products used. A KHG without `02_delineation/subkhg_units.gpkg` runs as one unit (inputs in `inputs/khg_level/`, results in `runs/balance_khg_level/`). Options of the balance: `--et` (default `mod16,wapor`, the first is central), `--rain-mode` (default `khg`; `unit` keeps rain per sub-KHG). `scripts/run_neraca.py` is the same as `repeat-neraca-run`. `repeat-neraca-stations` also takes `--kinds concession,community`, `--min-coverage` (community records start in late July 2026, so 0.3 keeps them) and `--out`; the groundwater model reads its own station export from `03_neraca/inputs/model/` when there is one. Options of the groundwater model: `repeat-neraca-model --help` and the report, sections 3 and 9.
 
 | Command | Module | Does |
 |---|---|---|
@@ -86,7 +91,7 @@ repeat-neraca-run --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml 
 |---|---|---|
 | Sub-KHG units | `_khg/<khg>/02_delineation/subkhg_units.gpkg` (`unit_id`), from repeat-delineation; else the KHG from `_data/batas_khg_indonesia.gpkg` | fetch |
 | Rain | CHIRPS daily, `UCSB-CHG/CHIRPS/DAILY`, 0.05°, to 2026-09-30 | fetch |
-| Evapotranspiration | MOD16A2GF v061, 500 m, to 2025-12 (central); WaPOR v3 L1 AETI dekadal, 326 m, to 2026-10-11 | fetch |
+| Evapotranspiration | MOD16A2GF v061, 500 m, to 2025-12 (central); MOD16A2 v061 without gap filling (`mod16nrt`, 2021 to 2026-10, for 2026 runs); WaPOR v3 L1 AETI dekadal, 326 m, to 2026-10-11 | fetch |
 | Land cover | ESA WorldCover v200, 10 m | fetch (interception) |
 | Rain reference (checks) | IMERG Final monthly V07, 0.1°, to 2025-09 | fetch with `--products imerg --step month` |
 | Water table | SiTMAT concession stations, 2026-04-01 to 2026-10-22 (`SITMAT_PROCESSED`) | stations |
@@ -97,7 +102,7 @@ Units, licences and periods of the datasets: method report, section 3, and `re-p
 
 ## Outputs
 
-In the KHG work folder `_khg/<khg>/03_neraca/`:
+In the KHG work folder `_khg/<khg>/03_neraca/`, or `03_neraca/<dem>/` for a DEM variant (`repeat-neraca-batch --dem`, as the chain runner `re-peat/tools/khg_pipeline.py` calls it); the KHG deficit stays in `03_neraca/runs/deficit/`:
 
 | File | Content |
 |---|---|
@@ -123,6 +128,18 @@ In the KHG work folder `_khg/<khg>/03_neraca/`:
 | `balance_stable_ok` | 1: ET products agree on the order of units and the order holds between years (p < 0.01); 0: not; empty: fewer than 5 units |
 
 `_khg/neraca_balance_summary.csv` has one row per KHG from `repeat-neraca-batch`.
+
+Groundwater model runs (`repeat-neraca-model`) write to `03_neraca/<dem>/runs/model/<run>/`, with rain and ET in `03_neraca/inputs/model/`:
+
+| File | Content |
+|---|---|
+| `model_series.csv` | per day: P, ET, KHG-mean depth, share deeper than 40 cm, water from canals and the edge, ET share, open-land depth, water supplied to managed land (mm, m3) |
+| `model_units.csv` | per sub-KHG (or the KHG): open and managed area, the season's open-land depth and days deeper than 40 cm, managed supply |
+| `model_season_days_deeper_40cm.tif`, `model_season_mean_depth.tif`, `model_season_managed_supply.tif` | season maps (June to September by default, `--season`); the days map covers open land only |
+| `model_depth_window.tif`, `model_depth_end.tif`, `model_managed_target.tif` | depth over the field window and on the last day; target of held land |
+| `station_scores.json`, `station_scores.csv`, `station_sim_daily.csv` | scores against SiTMAT stations and the gate; simulated daily depth at the stations |
+| `field_scores.json`, `field_points.csv` | scores against field points (`00_inputs/field_wtd.csv`) |
+| `inputs.csv`, `run_config.json`, `managed_targets.csv`, `registry_snapshot.json`, `model_report.md` | source of each input and its share of the KHG; settings; targets per licence; report |
 
 ## What neraca hands to the other modules
 
@@ -156,7 +173,8 @@ src/repeat_neraca/
   testbed/                       synthetic KHG generator and the Urzainki et al. (2020) Siak benchmark
 config/neraca/                   example.yaml (site config template; real ones in re-peat/sites/<khg>/neraca.yaml)
 scripts/                         checks against data (check_*.py, reproduce_2021.py), run_neraca.py, benchmark_urzainki2020.py,
-                                 registry_table.py
+                                 registry_table.py; groundwater model: model_sweep.py, check_field_inputs.py, rank_station_sites.py,
+                                 summarise_model_runs.py, compare_scenarios.py
 tests/                           pytest
 ```
 
@@ -165,6 +183,7 @@ tests/                           pytest
 | Document | Content |
 |---|---|
 | [docs/neraca-air-method.md](docs/neraca-air-method.md) | the adopted method (climatic balance and KHG deficit), its evidence and results |
+| [docs/groundwater-model-report.md](docs/groundwater-model-report.md) | the groundwater model for rewetting scenarios: review, decisions, implementation, results, FAQ |
 | [docs/physical-model.md](docs/physical-model.md) | the groundwater model: inputs, parameters, tiers, how to run it |
 | [docs/neraca-air.md](docs/neraca-air.md) | results of the groundwater model on Sugihan-Lumpur and Kampar-Gaung, and why it is a diagnostic |
 | [docs/tropical-peat-hydraulic-parameters.md](docs/tropical-peat-hydraulic-parameters.md) | peat tables: the boreal table against tropical measurements |
@@ -176,6 +195,8 @@ tests/                           pytest
 | `docs/bucket_reports/` | reports of the retired bucket experiments |
 | `docs/figures/` | method diagram (`neraca_method.drawio`, rebuilt by `make_neraca_method.py`) |
 | [research_notes/groundwater_models_review.md](research_notes/groundwater_models_review.md) | groundwater models and open satellite data for rewetting scenarios (2026-10-28) |
+| [research_notes/peat_parameters_sumatra_kalimantan.md](research_notes/peat_parameters_sumatra_kalimantan.md) | measured Sy, K and ET of Sumatran and Kalimantan peat, with Ismail et al. 2021 in full |
+| [research_notes/burned_peat_hydrology.md](research_notes/burned_peat_hydrology.md) | burned peat: infiltration, runoff, and what it means for the model |
 | [research_notes/gee_2021_kahayan_sebangau.md](research_notes/gee_2021_kahayan_sebangau.md) | the 2021 Kahayan-Sebangau Earth Engine scripts |
 | [research_notes/runoff_coefficient_pulau_padang.md](research_notes/runoff_coefficient_pulau_padang.md) | origin of the runoff coefficient C |
 | `research_notes/Peatland neraca air operational gaps/` | review of operational gaps (`README.md`) and its topic notes |

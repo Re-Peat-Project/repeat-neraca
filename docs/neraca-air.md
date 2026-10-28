@@ -82,7 +82,7 @@ Sugihan-Lumpur needs about 290 mm of water from outside the rain balance in one 
 
 ## What this says
 
-- A rain-driven balance with canals as passive drains cannot reproduce water tables that are held at 35-55 cm through a dry season. The held level needs water from outside the rain balance and a canal level that is not "surface minus 1.2 m". Both are management facts (compare `docs/neraca_air_references.md` in `khg-prioritisation-module`: Taufik et al. 2019 set the canal level by season; Apers et al. 2022 name the static treatment of drainage as the main error).
+- A rain-driven balance with canals as passive drains cannot reproduce water tables that are held at 35-55 cm through a dry season. The held level needs water from outside the rain balance and a canal level that is not "surface minus 1.2 m". Both are management facts (Taufik et al. 2019 set the canal level by season; Apers et al. 2022 name the static treatment of drainage as the main error).
 - The physical result is still useful at KHG level: it gives the **deficit the system must meet** to hold the water table, in mm or million m3 per dry season, and the months in which it arises. For Sugihan-Lumpur that is the roughly 285 mm (about 1.8 billion m3 over 6,348 km2) of the June-October balance that the stations do not show.
 - Terrain limits any 2D result (docs 07 and 08): the DTM error at 300-600 m is comparable to the head differences. The 2D tier is useful for regional patterns only after the peat table and canal levels are right.
 
