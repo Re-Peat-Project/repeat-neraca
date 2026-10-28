@@ -4,7 +4,7 @@ import pytest
 
 from repeat_neraca import lumped
 from repeat_neraca.params import Registry
-from repeat_neraca.testbed.groundwater import solve
+from repeat_neraca.groundwater import solve
 
 
 def const(sy, T):

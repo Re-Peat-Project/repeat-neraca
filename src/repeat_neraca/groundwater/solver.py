@@ -1,4 +1,5 @@
-"""2D nonlinear Boussinesq groundwater solver on a regular grid (SI units).
+"""2D nonlinear Boussinesq groundwater solver on a regular grid (SI units). Used by the physical neraca air (tier 2) and by
+repeat-pump's optional block optimisation.
 
     S(zeta) dh/dt = div( T(zeta) grad h ) + R
 
@@ -7,13 +8,15 @@ h is the head (m above datum), zeta = h - surface (m, negative below ground), R 
 outer boundary) or outside the domain (no flow). Implicit Euler in time with Picard iteration
 for the nonlinearity, arithmetic-mean face transmissivity, ponded water removed each step.
 
-The scheme follows the one used by Urzainki et al. (2020, Biogeosciences 17, 4769; MIT code
-LukeEcomod/blopti) but in physical units, with its own sparse solver.
+Provenance: written for the ``watershare`` testbed of the re-peat repository after finding that the original code was
+not unit-consistent. The scheme and the peat tables follow Urzainki et al. (2020, Biogeosciences 17, 4769-4784; MIT code
+LukeEcomod/blopti, Copyright (c) 2019 Inaki Urzainki). See ``data/NOTICE-urzainki2020.md``. Numerical method: implicit
+Euler with Picard iteration (standard finite-volume practice); no new algorithm is introduced here.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
+from importlib import resources
 from typing import Callable, Sequence
 
 import numpy as np
@@ -23,16 +26,15 @@ import scipy.sparse.linalg as spla
 SyFn = Callable[[np.ndarray], np.ndarray]
 TransFn = Callable[[np.ndarray, np.ndarray], np.ndarray]
 
-DATA = Path(__file__).parent / "data"
 
-# Tropical peat sets (s1, s2, t1, t2) of Sy(zeta) = s1 exp(s2 zeta), T = t1 exp(t2 zeta); see docs/tropical-peat-hydraulic-parameters.md.
-# Urzainki et al. (2023, Biogeosciences 20, 2099-2116), Table 2: Merang-Kepayang peat dome, South Sumatra; the function forms follow
-# Cobb and Harvey (2019). The authors present the set that best fitted the measured water table depths of that site, in a small and a
-# large conductivity scenario, so these are site-calibrated values, not measurements.
+# Tropical peat after Cobb and Harvey (2019) as parameterised by Urzainki et al. (2023, Biogeosciences 20, 2099-2116, Table 2),
+# calibrated at the Merang-Kepayang dome (South Sumatra): (s1, s2, t1, t2). The authors present the set that best fitted the
+# measured water table depths of that site, so these are site-calibrated values, not measurements: docs/tropical-peat-hydraulic-parameters.md.
 TROPICAL_SETS = {
     "tropical-small": {"params": (0.6, 0.5, 50.0, 2.5), "source": "Urzainki et al. 2023, parameter scenario 1 (small conductivity)"},
     "tropical-large": {"params": (0.6, 0.5, 500.0, 2.5), "source": "Urzainki et al. 2023, parameter scenario 2 (large conductivity)"},
 }
+PEAT_TABLES = ("urzainki2020", *TROPICAL_SETS)
 
 
 @dataclass
@@ -58,25 +60,25 @@ class PeatTable:
     @classmethod
     def urzainki2020(cls) -> "PeatTable":
         """Woody peat, von Post 1-8 over 0.5 m on sapric peat (Paivanen 1973 retention), K adjust 1."""
-        a = np.loadtxt(DATA / "urzainki2020_peat_tables.csv", delimiter=",", skiprows=1)
+        with resources.files("repeat_neraca.groundwater").joinpath("data/urzainki2020_peat_tables.csv").open("r", encoding="utf8") as fh:
+            a = np.loadtxt(fh, delimiter=",", skiprows=1)
         return cls(a[:, 0], a[:, 1], a[:, 2])
 
     @classmethod
     def exponential(cls, s1: float, s2: float, t1: float, t2: float, zmin: float = -20.0, dz: float = 0.01) -> "PeatTable":
-        """Tropical peat after Cobb and Harvey (2019), as parameterised by Urzainki et al. (2023, Eqs. 6 and 8):
-        Sy(zeta) = s1 exp(s2 zeta) and T(zeta, d) = t1 (exp(t2 zeta) - exp(-t2 d)), zeta in m, negative below the surface, T in m2/day.
-        `trans` takes the exp(-t2 d) term from the table at -d, so the table holds t1 exp(t2 zeta)."""
+        """Sy(zeta) = s1 exp(s2 zeta) and T(zeta, d) = t1 (exp(t2 zeta) - exp(-t2 d)), zeta in m, negative below the surface, T in m2/day
+        (Urzainki et al. 2023, Eqs. 6 and 8). ``trans`` takes the exp(-t2 d) term from the table at -d, so the table holds t1 exp(t2 zeta)."""
         z = np.arange(zmin, dz / 2, dz)
         return cls(z, s1 / s2 * (np.exp(s2 * z) - np.exp(s2 * zmin)), t1 * np.exp(t2 * z))
 
     @classmethod
     def named(cls, name: str) -> "PeatTable":
-        """`urzainki2020` (the table in this repository, boreal retention curves) or a tropical set of TROPICAL_SETS."""
+        """``urzainki2020`` (boreal retention curves, the 2020 paper's table) or a tropical set of ``TROPICAL_SETS``."""
         if name == "urzainki2020":
             return cls.urzainki2020()
         if name in TROPICAL_SETS:
             return cls.exponential(*TROPICAL_SETS[name]["params"])
-        raise ValueError(f"unknown peat table {name!r}; choose urzainki2020 or one of {sorted(TROPICAL_SETS)}")
+        raise ValueError(f"unknown peat table {name!r}; choose one of {', '.join(PEAT_TABLES)}")
 
     def sy(self, zeta: np.ndarray) -> np.ndarray:
         return np.interp(np.minimum(zeta, 0.0), self.zeta, self._sy)

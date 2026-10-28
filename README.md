@@ -1,6 +1,6 @@
 # repeat-neraca
 
-Neraca air (water balance) of a KHG for RE-PEAT (GitHub org Re-Peat-Project). A Python package, version 0.1.0.
+Neraca air (water balance) of a KHG for RE-PEAT (GitHub org Re-Peat-Project). A Python package, version 0.2.0.
 
 Full method, evidence and results: [docs/neraca-air-method.md](docs/neraca-air-method.md). Diagram: [docs/figures/neraca_method.drawio](docs/figures/neraca_method.drawio).
 
@@ -128,7 +128,7 @@ In the KHG work folder `_khg/<khg>/03_neraca/`:
 
 ## Third-party data
 
-`src/repeat_neraca/testbed/data/` holds peat tables from Urzainki et al. (2020); read `NOTICE-urzainki2020.md` there before redistributing.
+`src/repeat_neraca/groundwater/data/` holds peat tables from Urzainki et al. (2020); read `NOTICE-urzainki2020.md` there before redistributing.
 
 ## Layout
 

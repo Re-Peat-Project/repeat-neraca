@@ -3,7 +3,7 @@ import pytest
 from scipy import ndimage
 
 from repeat_neraca.testbed.forcing import make_forcing
-from repeat_neraca.testbed.groundwater import PeatTable, solve
+from repeat_neraca.groundwater import PeatTable, solve
 from repeat_neraca.testbed.khg import KHGConfig, LANDCOVER, generate
 
 SMALL = KHGConfig(seed=3, size_m=6000.0, dx=30.0, primary_spacing=1600.0, n_blocks=8, n_gates=3, n_loggers=9)

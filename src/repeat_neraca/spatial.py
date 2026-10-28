@@ -2,7 +2,7 @@
 
     Sy(z) dh/dt = div( T(z) grad h ) + R
 
-on the grid of `RealKHG` with the peat table of `repeat_neraca.testbed.groundwater` (storage and transmissivity as functions of water table depth),
+on the grid of `RealKHG` with the peat table of `repeat_neraca.groundwater` (storage and transmissivity as functions of water table depth),
 fixed heads on the KHG edge ring (river or sea) and on the canal cells (local surface minus `canal_drawdown`), and the daily net recharge
 R = P - ET of the whole KHG (one series; spatial forcing is a later step), with ET multiplied by `et_fn(z)` cell by cell when given. The initial water table is `initial_wtd` below the surface.
 
@@ -16,7 +16,7 @@ import time
 
 import numpy as np
 
-from .testbed.groundwater import PeatTable, solve
+from .groundwater import PeatTable, solve
 from .inputs import RealKHG, fixed_head
 
 

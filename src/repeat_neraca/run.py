@@ -30,7 +30,7 @@ from repeat_neraca import forcing_read as FR              # noqa: E402
 from repeat_neraca import inputs as IN                    # noqa: E402
 from repeat_neraca import lumped, spatial, validate as V  # noqa: E402
 from repeat_neraca.params import Registry                        # noqa: E402
-from repeat_neraca.testbed.groundwater import TROPICAL_SETS, PeatTable          # noqa: E402
+from repeat_neraca.groundwater import TROPICAL_SETS, PeatTable          # noqa: E402
 
 
 def _fmt(d: dict, keys) -> str:

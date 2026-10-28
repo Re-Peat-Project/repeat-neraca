@@ -82,7 +82,7 @@ How to read this:
 - Keep `urzainki2020` as the default for now so that existing results do not move, and use `--peat-table tropical-small` or `tropical-large` for tropical KHG, saying in any report that the sets are site-calibrated.
 - Before adopting one as the default: (a) replace the surface Sy of 0.6 by a measured shape (Cobb and Harvey near the surface, Ismail below, giving roughly 0.3 falling to 0.1 at -1.5 m); (b) take T from measured conductivity profiles (Cobb and Harvey, Kurnianto) instead of a calibrated scale; (c) fit nothing to our stations, so that the comparison with them stays a test.
 - Retention data for Riau (Taufik) and the PEATCLSM-Trop retention parameters could give an independent Sy(z) from the retention curve. That needs the van Genuchten or Campbell parameters per layer and a choice of how to integrate them; not done.
-- If a set is adopted, its numbers move into `src/repeat_neraca/parameters.yaml` (they are in `TROPICAL_SETS` in `testbed/groundwater.py` for now, so that the registry snapshot of existing runs does not change).
+- If a set is adopted, its numbers move into `src/repeat_neraca/parameters.yaml` (they are in `TROPICAL_SETS` in `groundwater/solver.py` for now, so that the registry snapshot of existing runs does not change).
 
 Reproduce: `python scripts/run_neraca.py --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml --peat-table tropical-small --tier 1 --classes primary,secondary,tertiary --drawdown 0.5,1.2` (and `--tier 2 --res 500`), with `REPEAT_DATA` and `REPEAT_WORK` set.
 

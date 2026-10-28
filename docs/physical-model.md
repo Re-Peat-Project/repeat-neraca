@@ -60,7 +60,7 @@ Constants in the code, not in the registry:
 | minimum Spearman for `neraca_skill_ok` | 0.3 | `validate.MIN_SPATIAL_SKILL` |
 | natural-peat ET thresholds (`--et-stress natural`) | -0.70 m, -1.82 m | `scripts/run_neraca.py` |
 | tier 1 sub-step limit (rate C/Sy per sub-step) | 0.5 | `lumped.simulate_rain_et` |
-| tier 2 Picard iterations, tolerance | 10, 1e-5 m | `testbed/groundwater.solve` |
+| tier 2 Picard iterations, tolerance | 10, 1e-5 m | `groundwater.solve` |
 | floors on Sy and T | 0.02, 1e-6 m2/day | `PeatTable` |
 | deficit window, Sy, band, edge days, minimum station coverage, WaPOR bound | 1 June to 31 Oct, 0.15, 0.10-0.20, 7, 0.5, off | `deficit.DEFAULTS` (overridable in a `deficit:` block of the config) |
 
@@ -68,7 +68,7 @@ Constants in the code, not in the registry:
 
 Both tiers take the specific yield `Sy(z)` and transmissivity `T(z)` from a `PeatTable` (`--peat-table`):
 
-- `urzainki2020` (default): a table of profile storage and transmissivity against water table depth (`testbed/data/`). `Sy = d storage / dz`, floored at 0.02. `T(z) = tra(z) - tra(-d)` for peat depth `d`, times `--k-multiplier`, floored at 1e-6. The table was built from boreal Paivanen (1973) retention curves, so it is a placeholder for tropical peat; T is about 0.5 m2/day at the surface and near zero by 0.6 m depth.
+- `urzainki2020` (default): a table of profile storage and transmissivity against water table depth (`groundwater/data/`). `Sy = d storage / dz`, floored at 0.02. `T(z) = tra(z) - tra(-d)` for peat depth `d`, times `--k-multiplier`, floored at 1e-6. The table was built from boreal Paivanen (1973) retention curves, so it is a placeholder for tropical peat; T is about 0.5 m2/day at the surface and near zero by 0.6 m depth.
 - `tropical-small`, `tropical-large`: `Sy = s1 exp(s2 z)`, `T = t1 (exp(t2 z) - exp(-t2 d))` with (s1, s2, t1, t2) = (0.6, 0.5, 50 or 500, 2.5), Urzainki et al. (2023), site-calibrated for Merang-Kepayang. See [tropical-peat-hydraulic-parameters.md](tropical-peat-hydraulic-parameters.md).
 
 ### Tier 1: KHG-level water table (`lumped.py`)
@@ -85,7 +85,7 @@ Sy(z) dz/dt = R - C(z) (z - z_c)        C(z) = 12 T(z) / L^2        R = P - ET x
 - Explicit Euler per day, split into `ceil((C/Sy) / 0.5)` sub-steps to stay stable; `z` is capped at 0 (ponded water leaves).
 - Run for every `--drawdown` and `--k-multiplier` given.
 
-### Tier 2: 2D groundwater (`spatial.py`, `testbed/groundwater.py`)
+### Tier 2: 2D groundwater (`spatial.py`, `groundwater/solver.py`)
 
 ```
 Sy(z) dh/dt = div( T(z) grad h ) + R         z = h - surface

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from repeat_neraca.testbed.groundwater import PeatTable, solve
+from repeat_neraca.groundwater import PeatTable, solve
 
 
 def const_fns(sy, T):
@@ -76,7 +76,7 @@ def test_peat_table_properties():
 def test_exponential_peat_table_reproduces_its_functions():
     """PeatTable.exponential gives Sy = s1 exp(s2 zeta) and T = t1 (exp(t2 zeta) - exp(-t2 d)) (Urzainki et al. 2023, Eqs. 6 and 8)."""
     import numpy as np
-    from repeat_neraca.testbed.groundwater import TROPICAL_SETS, PeatTable
+    from repeat_neraca.groundwater import TROPICAL_SETS, PeatTable
     s1, s2, t1, t2 = TROPICAL_SETS["tropical-small"]["params"]
     t = PeatTable.named("tropical-small")
     z = np.array([-0.05, -0.3, -1.0, -1.5])
@@ -85,3 +85,15 @@ def test_exponential_peat_table_reproduces_its_functions():
     assert np.allclose(t.trans(z, d), t1 * (np.exp(t2 * z) - np.exp(-t2 * d)), rtol=1e-3)
     assert np.allclose(PeatTable.named("tropical-large").trans(z, d), 10 * t.trans(z, d), rtol=1e-6)
     assert np.allclose(PeatTable.named("urzainki2020").sy(z), PeatTable.urzainki2020().sy(z))
+
+
+def test_peat_table_ships_as_package_data():
+    """Guards the packaging trap: the CSV must be found through importlib.resources, not a source-tree path (repeat-pump's
+    QGIS plugin installs this package non-editable)."""
+    from importlib import resources
+    f = resources.files("repeat_neraca.groundwater").joinpath("data/urzainki2020_peat_tables.csv")
+    assert f.is_file() and PeatTable.urzainki2020().zeta.size > 100
+    import tomllib
+    from pathlib import Path
+    cfg = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf8"))
+    assert "groundwater/data/*" in cfg["tool"]["setuptools"]["package-data"]["repeat_neraca"]

@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 import scipy.signal
 
-from .groundwater import PeatTable, solve
+from ..groundwater import PeatTable, solve
 
 CROP = (slice(7, -7), slice(5, -15))                      # empty rows and columns of the clip
 DEPTH_BY_TYPE = {1: 2.0, 2: 2.0, 3: 4.0, 4: 0.0, 5: 0.0, 6: 2.0, 7: 4.0, 8: 8.0}

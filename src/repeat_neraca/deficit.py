@@ -11,7 +11,7 @@ Choices (agreed 2026-10-20):
   window   1 June to the last day with forcing (at most 31 October), of the forcing window's year. Station data only cover 2026, so one
            dry season is all there is; baseline years can be added when stations or other water table data cover them.
   Sy       a constant 0.15, band 0.10 to 0.20. The Urzainki et al. (2020) peat tables are not used here: they are built from boreal
-           retention curves (Paivanen 1973; see testbed/data/NOTICE-urzainki2020.md), so they are only an option once tropical peat
+           retention curves (Paivanen 1973; see groundwater/data/NOTICE-urzainki2020.md), so they are only an option once tropical peat
            has adopted them or tropical curves replace them.
   E        ERA5 is the central value (kept 2026-10-26: its evaporation totals are within -6 to +2 % of MOD16, whose level lies in the
            eddy-covariance range for tropical peat, and its rain is as close to IMERG as CHIRPS; docs/reports/forcing_products.md).
