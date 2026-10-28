@@ -81,7 +81,7 @@ ERA5 P and E; window 1 June to the last day with forcing (at most 31 October); `
 
 ### C. Diagnostic only
 
-The physical model (tier 1 `lumped.py`, tier 2 `spatial.py`) reproduces the timing of the KHG-mean water table but not its level and gives every sub-KHG the same curve. It shows that the observed level is held by water from outside the rain balance. The bucket model fitted to the stations was retired on 2026-10-26 (record in `bucket_reports/`).
+The physical model (tier 1 `groundwater/lumped.py`, tier 2 `groundwater/spatial.py`) reproduces the timing of the KHG-mean water table but not its level and gives every sub-KHG the same curve. It shows that the observed level is held by water from outside the rain balance. The bucket model fitted to the stations was retired on 2026-10-26 (record in `bucket_reports/`).
 
 ## 5. Decisions and their evidence
 

@@ -6,7 +6,7 @@ Full method, evidence and results: [docs/neraca-air-method.md](docs/neraca-air-m
 
 ## Method in short
 
-Two outputs, at two levels:
+Two outputs, at two levels, and the model that is to take over from them:
 
 1. Climatic water balance per sub-KHG: the method of the 2021 Kahayan-Sebangau study (Bambang Kun Cahyono) with its parameters:
 
@@ -24,7 +24,9 @@ Two outputs, at two levels:
 
 What was added to the 2021 Earth Engine method, and why each choice was made (rain as KHG mean, MOD16 central, the stability test, P − ET as the ranking signal, ERA5 for the deficit): method report, sections 2 and 5.
 
-The physical groundwater model (tiers 1 and 2) remains as a diagnostic and is not used for ranking: [docs/physical-model.md](docs/physical-model.md). The bucket-model experiments were retired on 2026-10-26 (record: [docs/bucket_experiments_README.md](docs/bucket_experiments_README.md), `docs/bucket_reports/`).
+3. Groundwater model (`repeat_neraca.groundwater`): a 2D Boussinesq solver with peat tables after Urzainki et al. (2020, 2023), run as tier 1 (one KHG-level water table) and tier 2 (gridded). It is a diagnostic for now and is not used for ranking: [docs/physical-model.md](docs/physical-model.md). The plan is to grow it into the neraca air that simulates rewetting scenarios (canal blocks, pumping). It will replace the outputs above only after it passes a check against the field water tables, and the climatic balance stays as the fallback for KHG without an adequate DTM. Review of other models and data: [research_notes/groundwater_models_review.md](research_notes/groundwater_models_review.md). repeat-pump uses the same solver for its block optimisation, installed from a tagged GitHub archive of this repository.
+
+The bucket-model experiments were retired on 2026-10-26 (record: [docs/bucket_experiments_README.md](docs/bucket_experiments_README.md), `docs/bucket_reports/`).
 
 ## Install
 
@@ -36,6 +38,8 @@ pip install -e ".[all,dev]"                # extras: neraca (DTM, peat, canals),
 earthengine authenticate                   # once per machine
 python -m pytest -q
 ```
+
+The groundwater solver alone (`repeat_neraca.groundwater`) needs only the base install (numpy, scipy, pandas, pydantic, pyyaml). Other packages that depend on it, such as repeat-pump, pin a tag: `repeat-neraca @ https://github.com/Re-Peat-Project/repeat-neraca/archive/refs/tags/v<version>.zip`. Bump `version` in `pyproject.toml` and push a matching tag when the solver changes.
 
 Environment variables:
 
@@ -72,7 +76,8 @@ repeat-neraca-run --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml 
 | `repeat-neraca-batch` | `repeat_neraca.batch` | Earth Engine fetch and balance for a list of KHG, `--selected` or `--all` |
 | `repeat-neraca-balance` | `repeat_neraca.balance` | balance per sub-KHG from fetched tables |
 | `repeat-neraca-stations` | `repeat_neraca.stations` | SiTMAT station files for a KHG |
-| `repeat-neraca-run` | `repeat_neraca.run` | KHG deficit, and the physical model ([docs/physical-model.md](docs/physical-model.md)) |
+| `repeat-neraca-map` | `repeat_neraca.maps` | map layers of one KHG: balance per sub-KHG, SiTMAT stations |
+| `repeat-neraca-run` | `repeat_neraca.run` | KHG deficit, and the groundwater model tiers 1 and 2 ([docs/physical-model.md](docs/physical-model.md)) |
 
 ## Inputs
 
@@ -133,12 +138,41 @@ In the KHG work folder `_khg/<khg>/03_neraca/`:
 ## Layout
 
 ```
-src/repeat_neraca/  balance.py, batch.py, stations.py, deficit.py, run.py, parameters.yaml (registry), params.py,
-                    physical model (lumped.py, spatial.py, inputs.py, validate.py, testbed/)
-config/neraca/      example.yaml (site config template; real ones in re-peat/sites/<khg>/neraca.yaml)
-scripts/            checks (check_*.py, reproduce_2021.py), run_neraca.py, benchmark_urzainki2020.py, registry_table.py
-tests/              pytest
-docs/               neraca-air-method.md (the method), figures/, reports/, physical-model.md, neraca-air.md, method-plan.md,
-                    references.md, bucket_reports/ (retired)
-research_notes/     2021 Earth Engine scripts, Pulau Padang runoff, operational gaps
+src/repeat_neraca/
+  params.py, parameters.yaml     parameter registry (every run stores a snapshot with its hash)
+  balance.py, batch.py, maps.py  climatic balance per sub-KHG, batch over many KHG, map layers
+  stations.py, deficit.py        SiTMAT station files, KHG deficit
+  run.py                         command for the KHG deficit and the groundwater tiers
+  groundwater/                   groundwater model
+    solver.py, data/             2D Boussinesq solver and peat tables (shared with repeat-pump)
+    grid.py                      a real KHG on a metric grid (boundary, DTM, peat depth, canals, stations)
+    forcing.py                   daily rain and evaporation of the KHG
+    lumped.py, spatial.py        tier 1 (KHG level) and tier 2 (gridded)
+    validate.py                  comparison with the SiTMAT stations
+  testbed/                       synthetic KHG generator and the Urzainki et al. (2020) Siak benchmark
+config/neraca/                   example.yaml (site config template; real ones in re-peat/sites/<khg>/neraca.yaml)
+scripts/                         checks against data (check_*.py, reproduce_2021.py), run_neraca.py, benchmark_urzainki2020.py,
+                                 registry_table.py
+tests/                           pytest
 ```
+
+## Documents
+
+| Document | Content |
+|---|---|
+| [docs/neraca-air-method.md](docs/neraca-air-method.md) | the adopted method (climatic balance and KHG deficit), its evidence and results |
+| [docs/physical-model.md](docs/physical-model.md) | the groundwater model: inputs, parameters, tiers, how to run it |
+| [docs/neraca-air.md](docs/neraca-air.md) | results of the groundwater model on Sugihan-Lumpur and Kampar-Gaung, and why it is a diagnostic |
+| [docs/tropical-peat-hydraulic-parameters.md](docs/tropical-peat-hydraulic-parameters.md) | peat tables: the boreal table against tropical measurements |
+| [docs/references.md](docs/references.md) | literature read for the method |
+| [docs/method-plan.md](docs/method-plan.md) | record of how the method was settled (2026-10-26) |
+| [docs/neraca_air_recap.md](docs/neraca_air_recap.md) | the first build plan of the module; superseded in part by the method plan |
+| [docs/bucket_experiments_README.md](docs/bucket_experiments_README.md) | record of the retired bucket experiments |
+| `docs/reports/` | reports written by the check scripts and the groundwater runs |
+| `docs/bucket_reports/` | reports of the retired bucket experiments |
+| `docs/figures/` | method diagram (`neraca_method.drawio`, rebuilt by `make_neraca_method.py`) |
+| [research_notes/groundwater_models_review.md](research_notes/groundwater_models_review.md) | groundwater models and open satellite data for rewetting scenarios (2026-10-28) |
+| [research_notes/gee_2021_kahayan_sebangau.md](research_notes/gee_2021_kahayan_sebangau.md) | the 2021 Kahayan-Sebangau Earth Engine scripts |
+| [research_notes/runoff_coefficient_pulau_padang.md](research_notes/runoff_coefficient_pulau_padang.md) | origin of the runoff coefficient C |
+| `research_notes/Peatland neraca air operational gaps/` | review of operational gaps (`README.md`) and its topic notes |
+| `research_notes/references/` | papers |

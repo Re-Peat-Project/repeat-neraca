@@ -8,8 +8,8 @@
 Question answered: with Sy, transmissivity, drain spacing, rain and evaporation taken from the registry and the data, and a canal level a
 given distance below the surface, how close is the simulated water table to what the SiTMAT stations record?
 
-  --tier 1   one KHG-level curve (`repeat_neraca.lumped`), run for every --drawdown; compared with the mean observed curve
-  --tier 2   the 2D groundwater solver (`repeat_neraca.spatial`) at --res metres, run for the first --drawdown only (about a minute per
+  --tier 1   one KHG-level curve (`repeat_neraca.groundwater.lumped`), run for every --drawdown; compared with the mean observed curve
+  --tier 2   the 2D groundwater solver (`repeat_neraca.groundwater.spatial`) at --res metres, run for the first --drawdown only (about a minute per
              run at 500 m); compared with the stations and summarised per sub-KHG
 
 Needs the files named in the config (see config/neraca/*.yaml) and the extras: pip install -e .[neraca].
@@ -26,9 +26,9 @@ import numpy as np
 import pandas as pd
 
 from repeat_neraca import deficit as DEF                  # noqa: E402
-from repeat_neraca import forcing_read as FR              # noqa: E402
-from repeat_neraca import inputs as IN                    # noqa: E402
-from repeat_neraca import lumped, spatial, validate as V  # noqa: E402
+from repeat_neraca.groundwater import forcing as FR      # noqa: E402
+from repeat_neraca.groundwater import grid as IN         # noqa: E402
+from repeat_neraca.groundwater import lumped, spatial, validate as V  # noqa: E402
 from repeat_neraca.params import Registry                        # noqa: E402
 from repeat_neraca.groundwater import TROPICAL_SETS, PeatTable          # noqa: E402
 

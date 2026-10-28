@@ -12,7 +12,7 @@ dependencies = ["numpy", "scipy", "pandas>=2.0", "pydantic>=2", "pyyaml"]
 [project.optional-dependencies]
 dev = ["pytest"]
 benchmark = ["rasterio", "pandas"]
-# real KHG inputs (repeat_neraca.inputs) and the physical-model runner
+# real KHG inputs (repeat_neraca.groundwater.grid) and the physical-model runner
 neraca = ["rasterio", "geopandas", "pandas", "pyproj", "shapely"]
 # SiTMAT station files (repeat_neraca.stations) and the ERA5 forcing route read through repeat-common
 sitmat = ["repeat-common", "geopandas"]

@@ -5,7 +5,7 @@
 import pandas as pd
 import pytest
 
-from repeat_neraca.forcing_read import read_forcing
+from repeat_neraca.groundwater.forcing import read_forcing
 
 
 def _write(tmp_path):

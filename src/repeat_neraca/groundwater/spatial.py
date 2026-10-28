@@ -16,8 +16,8 @@ import time
 
 import numpy as np
 
-from .groundwater import PeatTable, solve
-from .inputs import RealKHG, fixed_head
+from .grid import RealKHG, fixed_head
+from .solver import PeatTable, solve
 
 
 def run(khg: RealKHG, rain_m, et_m, table: PeatTable, canal_drawdown: float, river_stage_below_edge: float, initial_wtd: float,

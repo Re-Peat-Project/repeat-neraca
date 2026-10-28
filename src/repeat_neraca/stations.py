@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import inputs as IN
+from .groundwater import grid as IN
 
 
 def load(cfg: dict, polygon_ll) -> tuple[pd.DataFrame, pd.DataFrame]:

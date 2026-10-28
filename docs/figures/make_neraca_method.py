@@ -73,7 +73,7 @@ r2 = box(1260, 725, 250, 70, "<b>repeat-pump</b> (subkhg_priority.csv deficit_mm
 edge(st, s1); edge(kb, s1); edge(s1, o3); edge(o3, d1, "read"); edge(er, d1); edge(d1, o4); edge(pb, d1, dashed=True); edge(o4, r2)
 # C
 box(15, 885, 1510, 95, "C. Diagnostic only (not on the ranking path)", BAND)
-box(30, 915, 790, 55, "<b>Physical model</b>, tiers 1 and 2 (lumped.py, spatial.py): Sy(z) dz/dt = R − C(z)(z − z<sub>c</sub>) and 2D Boussinesq; DTM, peat depth, canals by class. Explains why observed water tables are held (supply from outside the rain balance); per-sub-KHG skill 0, frozen.", DIA)
+box(30, 915, 790, 55, "<b>Physical model</b>, tiers 1 and 2 (groundwater/lumped.py, groundwater/spatial.py): Sy(z) dz/dt = R − C(z)(z − z<sub>c</sub>) and 2D Boussinesq; DTM, peat depth, canals by class. Explains why observed water tables are held (supply from outside the rain balance); per-sub-KHG skill 0, frozen.", DIA)
 box(900, 915, 610, 55, "Retired 2026-10-26: bucket model fitted to SiTMAT (failed spatial skill check); record in docs/bucket_reports/. Not used: TerraClimate (ends 2024-12), runoff C 0.25 / 0.35 of the 2021 scripts.", DIA)
 # D
 box(15, 995, 1510, 300, "D. What was added to the 2021 Earth Engine method (B.K. Cahyono, Kahayan-Sebangau, users/bambangkun/NDVI_DenganSentinel2)", BAND)

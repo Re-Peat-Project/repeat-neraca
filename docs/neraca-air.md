@@ -10,10 +10,10 @@ Two tiers, both in `src/repeat_neraca/`:
 
 | Tier | Equation | Code |
 |---|---|---|
-| 1, KHG level | `Sy(z) dz/dt = R - C(z) (z - z_c)`, `C = 12 T(z) / L^2`: one water table for the whole KHG. R = P - ET, z_c = -canal drawdown, L = 1 / (canal length per area). The coefficient 12 T / L^2 reproduces the strip between two drains (tested against the 2D solver) | `lumped.py` |
-| 2, 2D groundwater | `Sy(z) dh/dt = div(T(z) grad h) + R` on a metric grid, fixed heads on the KHG edge ring (river or sea) and on the canal cells (local surface minus drawdown) | `spatial.py` (solver: `groundwater/solver.py`) |
+| 1, KHG level | `Sy(z) dz/dt = R - C(z) (z - z_c)`, `C = 12 T(z) / L^2`: one water table for the whole KHG. R = P - ET, z_c = -canal drawdown, L = 1 / (canal length per area). The coefficient 12 T / L^2 reproduces the strip between two drains (tested against the 2D solver) | `groundwater/lumped.py` |
+| 2, 2D groundwater | `Sy(z) dh/dt = div(T(z) grad h) + R` on a metric grid, fixed heads on the KHG edge ring (river or sea) and on the canal cells (local surface minus drawdown) | `groundwater/spatial.py` (solver: `groundwater/solver.py`) |
 
-`Sy` and `T` come from the peat table (`PeatTable.urzainki2020`, storage and transmissivity as functions of water table depth). Parameters are in `src/repeat_neraca/parameters.yaml`: `canal_drawdown` (1.2 m, Urzainki et al. 2020), `river_stage_below_edge` (0.3 m), `initial_wtd` (-0.2 m), `neraca_grid_res_m` (500 m). `inputs.py` reads a real KHG (boundary, DTM, peat depth, canals by class, stations) from the paths in `config/neraca/<khg>.yaml`; `validate.py` compares the run with the SiTMAT stations.
+`Sy` and `T` come from the peat table (`PeatTable.urzainki2020`, storage and transmissivity as functions of water table depth). Parameters are in `src/repeat_neraca/parameters.yaml`: `canal_drawdown` (1.2 m, Urzainki et al. 2020), `river_stage_below_edge` (0.3 m), `initial_wtd` (-0.2 m), `neraca_grid_res_m` (500 m). `groundwater/grid.py` reads a real KHG (boundary, DTM, peat depth, canals by class, stations) from the paths in `config/neraca/<khg>.yaml`; `groundwater/validate.py` compares the run with the SiTMAT stations.
 
 Water table depth is negative below the surface inside the model; the reports give depth in cm, positive down.
 

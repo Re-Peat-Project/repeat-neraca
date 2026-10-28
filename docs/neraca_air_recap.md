@@ -1,6 +1,6 @@
 # RE-PEAT — Neraca Air Module: Build Recap for Agent
 
-> **2026-10-26:** superseded in part by [docs/method-plan.md](docs/method-plan.md), which sets the method to finalise and lists, in its section 7, the items here proposed for removal. Nothing below has been removed yet.
+> **2026-10-26:** superseded in part by [method-plan.md](method-plan.md), which sets the method to finalise and lists, in its section 7, the items here proposed for removal. Nothing below has been removed yet.
 
 **Context.** RE-PEAT (WorldBank–KLH) rewetting workflow, UGM Geodesi GIS team.
 - The neraca air module is **separate** from the rewetting/pompanisasi workflow. Its job is to **prioritise sub-KHG units** by water need.

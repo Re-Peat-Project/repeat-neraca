@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from repeat_neraca import lumped
+from repeat_neraca.groundwater import lumped
 from repeat_neraca.params import Registry
 from repeat_neraca.groundwater import solve
 
@@ -71,7 +71,7 @@ def test_loader_reads_a_made_up_khg(tmp_path):
     from rasterio.transform import from_origin
     from shapely.geometry import LineString, box
 
-    from repeat_neraca import inputs as IN
+    from repeat_neraca.groundwater import grid as IN
     crs = "EPSG:32748"                                                # UTM 48S, around 105.5 E, 3 S
     x0, y1 = 500000.0, 9668000.0
     khg = gpd.GeoDataFrame({"id": [1]}, geometry=[box(x0 + 1000, y1 - 7000, x0 + 7000, y1 - 1000)], crs=crs)
