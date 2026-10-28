@@ -77,6 +77,7 @@ repeat-neraca-run --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml 
 | `repeat-neraca-balance` | `repeat_neraca.balance` | balance per sub-KHG from fetched tables |
 | `repeat-neraca-stations` | `repeat_neraca.stations` | SiTMAT station files for a KHG |
 | `repeat-neraca-map` | `repeat_neraca.maps` | map layers of one KHG: balance per sub-KHG, SiTMAT stations |
+| `repeat-neraca-model` | `repeat_neraca.model` | groundwater model of a KHG from its code: daily water table on a grid, scored against field points (`00_inputs/field_wtd.csv`); in development |
 | `repeat-neraca-run` | `repeat_neraca.run` | KHG deficit, and the groundwater model tiers 1 and 2 ([docs/physical-model.md](docs/physical-model.md)) |
 
 ## Inputs
@@ -143,12 +144,15 @@ src/repeat_neraca/
   balance.py, batch.py, maps.py  climatic balance per sub-KHG, batch over many KHG, map layers
   stations.py, deficit.py        SiTMAT station files, KHG deficit
   run.py                         command for the KHG deficit and the groundwater tiers
+  model.py                       command for the groundwater model of a KHG (in development)
   groundwater/                   groundwater model
     solver.py, data/             2D Boussinesq solver and peat tables (shared with repeat-pump)
     grid.py                      a real KHG on a metric grid (boundary, DTM, peat depth, canals, stations)
     forcing.py                   daily rain and evaporation of the KHG
     lumped.py, spatial.py        tier 1 (KHG level) and tier 2 (gridded)
     validate.py                  comparison with the SiTMAT stations
+    simulate.py                  daily run with a canal level per class and the water the canals put into the peat
+    fieldobs.py, fieldcheck.py   field water-table points of a KHG, and the score and gate against them
   testbed/                       synthetic KHG generator and the Urzainki et al. (2020) Siak benchmark
 config/neraca/                   example.yaml (site config template; real ones in re-peat/sites/<khg>/neraca.yaml)
 scripts/                         checks against data (check_*.py, reproduce_2021.py), run_neraca.py, benchmark_urzainki2020.py,

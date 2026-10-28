@@ -45,6 +45,7 @@ def load(cfg: dict, polygon_ll) -> tuple[pd.DataFrame, pd.DataFrame]:
     meta = meta[meta["station_id"].isin(Z.columns)].set_index("station_id").loc[Z.columns].reset_index()
     meta = meta[["station_id", "lon", "lat"]].copy()
     meta["concession"] = meta.station_id.str.split(":").str[0].str.replace("concession/", "", regex=False)
+    meta.loc[meta.station_id.str.startswith("community/"), "concession"] = "community"      # community stations: one group
     return Z, meta
 
 
@@ -52,9 +53,17 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", required=True)
     ap.add_argument("--out", default=None, help="folder (default: inputs_dir of the config)")
+    ap.add_argument("--kinds", default=None, help="SiTMAT kinds, comma separated (default: the config's, else concession); e.g. concession,community")
+    ap.add_argument("--min-coverage", type=float, default=None,
+                    help="share of the window a station must cover (default: the config's stations.tma.min_coverage, else 0.5). Community "
+                         "records start in late July 2026, so 0.3 keeps them in an April-October window")
     a = ap.parse_args(argv)
     import geopandas as gpd
     cfg = IN.load_config(a.config)
+    if a.kinds:
+        cfg["stations"].setdefault("tma", {})["kinds"] = [k.strip() for k in a.kinds.split(",")]
+    if a.min_coverage is not None:
+        cfg["stations"].setdefault("tma", {})["min_coverage"] = a.min_coverage
     out = Path(a.out or cfg["inputs_dir"])
     out.mkdir(parents=True, exist_ok=True)
     geom = gpd.read_file(cfg["khg"]).to_crs(4326).geometry.union_all()

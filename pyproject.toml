@@ -26,6 +26,7 @@ repeat-neraca-batch = "repeat_neraca.batch:main"           # fetch + balance for
 repeat-neraca-stations = "repeat_neraca.stations:main"     # SiTMAT station files
 repeat-neraca-run = "repeat_neraca.run:main"               # KHG deficit and the physical model (diagnostic)
 repeat-neraca-map = "repeat_neraca.maps:main"              # map layers: balance per sub-KHG, SiTMAT stations
+repeat-neraca-model = "repeat_neraca.model:main"           # groundwater model of a KHG, scored against field points
 
 [tool.setuptools.packages.find]
 where = ["src"]

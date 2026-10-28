@@ -1,0 +1,179 @@
+KHG,code,selected,good concession,good community,groups,level mean (cm),level spread (cm),dry drawdown median (cm),dry drawdown spread (cm),LiDAR,sub-KHG units,good
+Sungai Kampar - Sungai Gaung,14.02-04-05.01,,78,0,9,43.0,11.0,7.0,20.7,yes,yes,78
+Sungai Sugihan - Sungai Lumpur,16.02.01,yes,51,0,3,43.0,3.1,11.0,2.8,yes,yes,51
+Sungai Rokan - Sungai Siak Kecil,14.03-07-12.01,,51,0,7,40.0,2.3,-2.0,6.5,?,?,51
+Sungai Siak - Sungai Kampar,14.05-08.01,,37,1,16,37.0,19.5,-1.0,9.0,?,?,38
+Sungai Mendahara - Sungai Batanghari,15.05-07-10.01,yes,12,9,6,34.0,12.7,1.0,12.8,yes,yes,21
+Sungai Batanghari - Sungai Air Hitam Laut,15.05-07.01,,17,2,10,43.0,35.2,10.0,19.8,?,?,19
+Sungai Terentang - Sungai Kapuas,61.12.07,,18,0,3,33.0,4.5,4.0,9.9,?,?,18
+Sungai Siak Kecil - Sungai Siak,14.03-08.01,,15,0,5,37.0,2.2,-8.0,4.9,?,?,15
+Sungai Kapuas - Sungai Mendawak,61.03.06,,14,0,1,33.0,7.5,4.0,14.2,?,?,14
+Sungai Pukun - Sungai Mentaya,62.02-07.02,,12,1,4,38.0,39.9,54.0,62.0,?,?,13
+Sungai Kapuas - Sungai Ambawang,61.71-12-03.01,,13,0,5,62.0,24.0,41.0,21.0,?,?,13
+Sungai Gaung - Sungai Batangtuaka,14.02-04.01,,12,0,2,43.0,3.2,15.0,1.6,?,?,12
+Sungai Lalan - Sungai Merang,15-16.02,,8,2,4,66.0,65.0,2.0,6.1,?,?,10
+Sungai Ngirawan - Sungai Sembilang,16.06-07.02,,10,0,3,37.0,3.3,3.0,3.4,?,?,10
+Sungai Air Hitam Laut - Sungai Buntu Kecil,15-16.01,yes,8,1,4,58.0,61.8,2.0,1.8,yes,no,9
+Aek Tapan - Aek Silaut,13.01.01,,9,0,2,31.0,2.1,-2.0,6.8,?,?,9
+Sungai Rokan Kiri - Sungai Mandau,14.01-03-06-08.01,,8,0,2,36.0,6.4,-4.0,5.0,?,?,8
+Sungai Merang - Sungai Ngirawan,16.06-07.01,,8,0,2,37.0,3.4,5.0,2.4,?,?,8
+Pulau Tebing Tinggi,14.10.03,yes,5,2,2,53.0,53.4,39.0,13.6,no,no,7
+Sungai Rokan - Sungai Kubu,14.07.01,,7,0,3,36.0,16.1,-6.0,10.7,?,?,7
+Sungai Betara - Sungai Mendahara,15.06-07.01,,7,0,1,37.0,0.5,2.0,0.8,?,?,7
+Sungai Sebuku - Sungai Sembakung,65.03.01,,3,3,2,66.0,43.4,-0.0,0.9,?,?,6
+Sungai Punggurbesar - Sungai Ambawang,61.12.01,,5,1,3,48.0,32.1,2.0,8.8,?,?,6
+Sungai Nilo - Sungai Napuh,14.05.06,,6,0,1,31.0,5.9,,,?,?,6
+Sungai Mandiangin - Sungai Siak,14.08.04,,6,0,1,35.0,2.0,-13.0,6.8,?,?,6
+Batang Singkuang - Nainjan Nu Godang,12.13.05,,6,0,1,38.0,0.2,-5.0,0.9,?,?,6
+Sungai Kapuas - Sungai Barito,62.03-04.01,yes,6,0,1,36.0,0.1,4.0,0.4,no,no,6
+Pulau Padang,14.10.01,yes,3,2,2,57.0,40.3,,,no,no,5
+Sungai Durian - Sungai Labai,61.12.09,,5,0,2,31.0,9.5,18.0,9.1,?,?,5
+Sungai Batanghari - Sungai Kampeh,15.05.01,,4,1,4,47.0,8.2,19.0,9.0,?,?,5
+Sungai Mentarang - Sungai Belayu,65.04.03,,4,1,2,36.0,7.0,-0.0,1.7,?,?,5
+Sungai Enok - Sungai Batang,14.04.11,,5,0,1,40.0,2.0,,,?,?,5
+Sungai Gongan - Sungai Nilo,14.05.07,,5,0,2,34.0,2.0,-5.0,7.6,?,?,5
+Sungai Labai - Sungai Kualan,61.04.03,,5,0,2,41.0,2.0,19.0,0.8,?,?,5
+Sungai Kapuas - Sungai Ketungau,61.05.08,,5,0,2,33.0,1.4,23.0,11.0,?,?,5
+Sungai Pengabuan - Sungai Baung,15.06.01,,5,0,1,38.0,0.4,1.0,0.3,?,?,5
+Pulau Bengkalis,14.03.02,yes,2,2,2,99.0,78.9,-0.0,2.2,no,no,4
+Sungai Yebour - Sungai Landak,61.08-12-3.1,,4,0,2,65.0,44.2,14.0,1.4,?,?,4
+Sungai Kiyap - Sungai Kerumutan,14.05.05,,4,0,3,54.0,23.4,19.0,16.5,?,?,4
+Sungai Seruyan - Sungai Kelua Besar,62.07.02,,4,0,2,11.0,21.2,0.0,9.6,?,?,4
+Sungai Bunut - Sungai Umban,14.03-08.02,,4,0,1,37.0,4.2,-11.0,4.5,?,?,4
+Sungai Matan -Sungai Semandang,61.11-04.02,,4,0,2,30.0,2.1,3.0,1.2,?,?,4
+Sungai Baung - Sungai Betara,15.06.02,,4,0,1,36.0,1.6,7.0,4.2,?,?,4
+Sungai Musi - Sungai Empasan,16.05-06.02,,4,0,1,38.0,0.5,-2.0,2.5,?,?,4
+Krueng Surin - Krueng Muling,11.15.05,,2,1,2,67.0,47.3,20.0,,?,?,3
+Krueng Wonki - Krueng Gubon,11.05.01,,0,3,1,51.0,45.0,,,?,?,3
+Sungai Burnai - Sungai Sibumbung,16.02.05,,1,2,2,33.0,24.6,23.0,,?,?,3
+Sungai Mentaya - Sungai Tualan,62.02.01,,3,0,1,22.0,19.3,8.0,6.9,?,?,3
+Sungai Indragiri - Sungai Belilas,14.02.01,,3,0,2,31.0,14.5,-7.0,,?,?,3
+Sungai Kumai - Sungai Sekonyer,62.01.05,,3,0,2,36.0,13.3,66.0,31.8,?,?,3
+Sungai Pungurbesar -  Sungai Kapuas,61.12-71.01,yes,3,0,3,53.0,12.1,76.0,52.7,no,no,3
+Sungai Mentaya - Sungai Seranau Kiri,62.02.02,,3,0,2,39.0,7.8,36.0,14.0,?,?,3
+Pulau Rangsang,14.10.04,,3,0,1,28.0,4.2,4.0,3.9,?,?,3
+Sungai Sembilang - Sungai Lalan,16.06-07.03,,3,0,1,29.0,0.6,13.0,0.4,?,?,3
+Pulau Rupat,14.03.01,,3,0,2,16.0,0.5,-5.0,0.1,?,?,3
+Sungai Batang - Sungai Tungkal,14-15.01,,3,0,1,38.0,0.5,-1.0,0.9,?,?,3
+Sungai Duri - Sungai Raya,61.07.02,,3,0,1,61.0,0.4,37.0,6.9,?,?,3
+Sungai Lamandau - Sungai Arut,62.01.02,,1,1,2,15.0,40.9,25.0,,?,?,2
+Sungai Barumun - Sungai Kubu,12-14.01,,1,1,2,31.0,22.3,16.0,,?,?,2
+Sungai Burung - Sungai Way Mesuji,16.02.08,,2,0,1,-10.0,14.8,13.0,17.9,?,?,2
+Aek Lunang - Aek Sidang,13.01.02,,0,2,1,45.0,13.2,,,?,?,2
+Sungai Jempang - Sungai Kedangpahu,64.07.02,,2,0,1,7.0,10.3,49.0,5.2,?,?,2
+Sungai Mesuji - Sungai Kebumangah,18.11.01,,2,0,2,10.0,5.3,14.0,9.7,?,?,2
+Sungai Kampar Kiri - Sungai Segati,14.01-05.02,,2,0,1,26.0,5.0,,,?,?,2
+Sungai Kubu - Sungai Pungurbesar,61.12.02,,2,0,1,36.0,4.5,4.0,5.1,?,?,2
+Sungai Kuo - Sungai Kualuh Bilah,12.10-23.01,,2,0,1,36.0,1.9,,,?,?,2
+Sungai Durian - Sungai Kualan,61.11-04.01,,2,0,1,28.0,1.3,1.0,4.5,?,?,2
+Sungai Leko - Sungai Minas,14.08.02,,2,0,1,35.0,1.3,-10.0,6.0,?,?,2
+Sungai Ulakkedondong - Sungai Lumpur,16.02.02,,2,0,1,41.0,1.0,8.0,0.7,?,?,2
+Sungai Rungan - Sungai Kahayan,62.11-14.01,,2,0,1,23.0,0.6,,,?,?,2
+Sungai Minas - Sungai Mandiangin,14.08.03,,2,0,2,33.0,0.2,-12.0,1.9,?,?,2
+Sungai Kahayan - Sungai Kapuas,62.03-11.01,,2,0,1,32.0,0.1,,,?,?,2
+Aek Na Birong - Aek Batang Toru,12.03.01,,1,0,1,24.0,,7.0,,?,?,1
+Aek Siriam - Batang Singkuang,12.13.04,,0,1,1,55.0,,,,?,?,1
+Aek Sordang - Aek Kalang,12.01.04,,0,1,1,12.0,,,,?,?,1
+Batang Masangkiri - Bah Antokan,13.06.02,,1,0,1,33.0,,16.0,,?,?,1
+Krueng Tripa - Krueng Seuneuam,11.15.04,,0,1,1,34.0,,,,?,?,1
+Lae Sibungkuang - Aek Tarutungol,12.01.02,,1,0,1,26.0,,-24.0,,?,?,1
+Sei Lalan - Sungai Bentayan,16.06.02,,1,0,1,61.0,,77.0,,?,?,1
+Sungai Ambawang - Sungai Landak,61.12-03.01,,1,0,1,44.0,,12.0,,?,?,1
+Sungai Arut,62.01.03,,1,0,1,3.0,,,,?,?,1
+Sungai Barito - Sungai Alalak,63.03-05.01,,1,0,1,42.0,,44.0,,?,?,1
+Sungai Barumun - Sungai Mabar,12.22.01,,1,0,1,44.0,,-0.0,,?,?,1
+Sungai Belayan - Sungai Kelinjau,64.02-08.01,,1,0,1,30.0,,7.0,,?,?,1
+Sungai Buluh Besar - Sungai Seruyan,62.01-07.01,,1,0,1,19.0,,12.0,,?,?,1
+Sungai Kahayan - Sungai Sebangau,62.11-14.02,yes,1,0,1,39.0,,,,no,no,1
+Sungai Kampar Kiri - Sungai Lipai,14.01.01,,1,0,1,36.0,,,,?,?,1
+Sungai Kapuas,61.12.03,,1,0,1,18.0,,16.0,,?,?,1
+Sungai Kapuas - Sungai Embau,61.06.06,,1,0,1,28.0,,,,?,?,1
+Sungai Kapuas - Sungai Separoh,61.12.04,,1,0,1,29.0,,24.0,,?,?,1
+Sungai Ketungau - Sungai Berau,61.06-05.02,,1,0,1,33.0,,25.0,,?,?,1
+Sungai Kualuh Bilah - Sungai Barumun,12.10-22.01,,0,1,1,117.0,,,,?,?,1
+Sungai Lamandau - Sungai Jelai,62.01-08.02,,1,0,1,25.0,,72.0,,?,?,1
+Sungai Lamandau - Sungai Sematu,62.01-09.01,,1,0,1,45.0,,13.0,,?,?,1
+Sungai Melintang - Sungai Layah,64.02-07.02,,0,1,1,125.0,,,,?,?,1
+Sungai Mentaya - Sungai Cempaga,62.02.03,,1,0,1,27.0,,8.0,,?,?,1
+Sungai Mesuji - Sungai Tulangbawang,18.05-11.01,,1,0,1,9.0,,11.0,,?,?,1
+Sungai Pelanduk - Sungai Tumu,14.04.01,,1,0,1,35.0,,7.0,,?,?,1
+Sungai Raya - Sungai Pangnilang,61.72-7.01,,1,0,1,69.0,,56.0,,?,?,1
+Sungai Sambas Besar - Sungai Sijang,61.01.04,,1,0,1,52.0,,-36.0,,?,?,1
+Sungai Sedawar - Sungai Sambas Besar,61.01.10,,1,0,1,31.0,,7.0,,?,?,1
+Sungai Seruyan - Sungai Sembuluh,62.07.01,,1,0,1,1.0,,,,?,?,1
+Sungai Sijang - Sungai Bantanan,61.01.03,,1,0,1,0.0,,0.0,,?,?,1
+Sungai Tabat - Batang Masangkiri,13.06-12.01,,1,0,1,33.0,,-1.0,,?,?,1
+Sungai Tapung Kiri - Sungai Kiyap,14.01-11.01,,1,0,1,36.0,,-4.0,,?,?,1
+Aek Maraitgadang - Aek Sikapas,12.13.03,,0,0,0,,,,,?,?,0
+Aek Maraitgadang - Batang Maraitgodang,12.13.02,,0,0,0,,,,,?,?,0
+Batang Ampu - Bah Mandiangin,13.12.03,,0,0,0,,,,,?,?,0
+Batang Merangin - Batang Tembesi,15.02-03.02,,0,0,0,,,,,?,?,0
+Batang Rokan Kiri - Batang Sosa,14.06-07.01,,0,0,0,,,,,?,?,0
+Batang Tembei - Sungai Merak,15.02-03.01,,0,0,0,,,,,?,?,0
+Batang Toru - Aek Maraitgadang,12.13.01,,0,0,0,,,,,?,?,0
+Krueng Matee - Krueng Teumiyee,11.15.01,,0,0,0,,,,,?,?,0
+Krueng Tadu - Krueng Tripa,11.15.03,,0,0,0,,,,,?,?,0
+Krueng Teumiyee - Krueng Tadu,11.15.02,,0,0,0,,,,,?,?,0
+Lae Sibungkuang,12.01.01,,0,0,0,,,,,?,?,0
+Lae Silabuhan - Lae Tambiski,11-12.01,,0,0,0,,,,,?,?,0
+Lae Sulampi - Lae Gosong,11.10.02,,0,0,0,,,,,?,?,0
+Sungai Ajari - Sungai Kubai,91.04.03,,0,0,0,,,,,?,?,0
+Sungai Alur - Sungai Lintang,16.05.01,,0,0,0,,,,,?,?,0
+Sungai Ambawang - Sungai Kubu,61.12.06,,0,0,0,,,,,?,?,0
+Sungai Api - Sungai Asiti,92.02.01,,0,0,0,,,,,?,?,0
+Sungai Asahan - Sungai Leidong,12.09-23.01,,0,0,0,,,,,?,?,0
+Sungai Bangko - Sungai Rokan Kanan,14.07.03,,0,0,0,,,,,?,?,0
+Sungai Bentayan - Sungai Penimpahan,16.06-07.04,,0,0,0,,,,,?,?,0
+Sungai Budidi - Sungai Bomberai,92.03.03,,0,0,0,,,,,?,?,0
+Sungai Buluh Besar,62.01-07.02,,0,0,0,,,,,?,?,0
+Sungai Gasip - Sungai Siak,14.08.05,,0,0,0,,,,,?,?,0
+Sungai Inggis - Sungai Kapuas,61.03-09.02,,0,0,0,,,,,?,?,0
+Sungai Jerora - Sungai Majau,61.05.12,,0,0,0,,,,,?,?,0
+Sungai Kais - Sungai Metamani,92.04.34,,0,0,0,,,,,?,?,0
+Sungai Kalumpang,16.05.02,,0,0,0,,,,,?,?,0
+Sungai Kanopan - Sungai Kuala,12.23.01,,0,0,0,,,,,?,?,0
+Sungai Kapuas -  Sungai Menukung,61.03.13,,0,0,0,,,,,?,?,0
+Sungai Kapuas - Sungai Ayak,61.09.02,,0,0,0,,,,,?,?,0
+Sungai Kapuas - Sungai Campedik,61.03.01,,0,0,0,,,,,?,?,0
+Sungai Kapuas - Sungai Mangkutup,62.03.01,,0,0,0,,,,,?,?,0
+Sungai Kapuas - Sungai Sebidau,61.09.05,,0,0,0,,,,,?,?,0
+Sungai Katingan - Sungai Klaru,62.06.02,,0,0,0,,,,,?,?,0
+Sungai Katingan - Sungai Mentaya,62.02-06.01,,0,0,0,,,,,?,?,0
+Sungai Kedangyantau - Sungai Sabintulung,64.02.02,,0,0,0,,,,,?,?,0
+Sungai Keramat - Sungai Jelai,61.04.14,,0,0,0,,,,,?,?,0
+Sungai Kiyap - Sungai Kampar Kiri,14.01-05.01,,0,0,0,,,,,?,?,0
+Sungai Kiyap - Sungai Kerinci,14.01-05-11.01,,0,0,0,,,,,?,?,0
+Sungai Kuala - Sungai Kuo,12.23.02,,0,0,0,,,,,?,?,0
+Sungai Laa - Sungai Petasia,72.06.01,,0,0,0,,,,,?,?,0
+Sungai Leidong - Sungai Kuala,12.09-23.02,,0,0,0,,,,,?,?,0
+Sungai Mandor - Sungai Landak,61.08.02,,0,0,0,,,,,?,?,0
+Sungai Mange - Sungai Dadau,61.01.01,,0,0,0,,,,,?,?,0
+Sungai Marbau - Sungai Kualuh Bilah,12.10-23.02,,0,0,0,,,,,?,?,0
+Sungai Mentarang- Sungai Sembakung,65.02-03-04.01,,0,0,0,,,,,?,?,0
+Sungai Musi - Sungai Aek Lematang,16.03.02,,0,0,0,,,,,?,?,0
+Sungai Musi - Sungai Penu,16.03-06.01,,0,0,0,,,,,?,?,0
+Sungai Musi - Sungai Rawas,16.05-06.01,,0,0,0,,,,,?,?,0
+Sungai Nata - Sungai Sinunukan,12.13.06,,0,0,0,,,,,?,?,0
+Sungai Otoweri - Sungai Saengga,92.03-06.01,,0,0,0,,,,,?,?,0
+Sungai Pasang Kayu - Sungai Bambalamotu,72.10-76.01.002,,0,0,0,,,,,?,?,0
+Sungai Pawan - Sungai Kepulu,61.04.08,,0,0,0,,,,,?,?,0
+Sungai Pawan - Sungai Tolak,61.04.07,,0,0,0,,,,,?,?,0
+Sungai Penu - Sungai Abah,16.03.01,,0,0,0,,,,,?,?,0
+Sungai Penyangkat - Sungai Selat Maya,61.12.10,,0,0,0,,,,,?,?,0
+Sungai Pukun - Sungai Kelua Besar,62.07.03,,0,0,0,,,,,?,?,0
+Sungai Pukun - Sungai Seruyan,62.02-07.01,,0,0,0,,,,,?,?,0
+Sungai Rumpit - Sungai Rawas,16.05.03,,0,0,0,,,,,?,?,0
+Sungai Salo Lariang - Sungai Pasang Kayu,72.10-76.01.001,,0,0,0,,,,,?,?,0
+Sungai Sambas Besar - Sungai Kumba,61.01.09,,0,0,0,,,,,?,?,0
+Sungai Sambas Kecil - Sungai Sambas Besar,61.01.08,,0,0,0,,,,,?,?,0
+Sungai Sambih - Sungai Landak,61.08.04,,0,0,0,,,,,?,?,0
+Sungai Sekadau - Sungai Kenawan,61.09.06,,0,0,0,,,,,?,?,0
+Sungai Selangkanan - Aek Bakal Kecil,17.06.02,,0,0,0,,,,,?,?,0
+Sungai Seputuk - Sungai Rian,65.04.01,,0,0,0,,,,,?,?,0
+Sungai Sibumbung - Sungai Talangrimba,16.02.04,,0,0,0,,,,,?,?,0
+Sungai Talang - Sungai Ulakkedondong,16.02.03,,0,0,0,,,,,?,?,0
+Sungai Talungai - Sungai Emparayau,61.05.13,,0,0,0,,,,,?,?,0
+Sungai Temila - Sungai Mandor,61.08.01,,0,0,0,,,,,?,?,0
+Sungai Tolak - Sungai Siduk,61.04.06,,0,0,0,,,,,?,?,0
+Sungai Utar - Sungai Serapat,62-63.01,,0,0,0,,,,,?,?,0
+Sungai Warsih - Sungai Sindu,92.08.15,,0,0,0,,,,,?,?,0

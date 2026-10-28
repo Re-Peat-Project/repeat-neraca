@@ -33,6 +33,10 @@ TransFn = Callable[[np.ndarray, np.ndarray], np.ndarray]
 TROPICAL_SETS = {
     "tropical-small": {"params": (0.6, 0.5, 50.0, 2.5), "source": "Urzainki et al. 2023, parameter scenario 1 (small conductivity)"},
     "tropical-large": {"params": (0.6, 0.5, 500.0, 2.5), "source": "Urzainki et al. 2023, parameter scenario 2 (large conductivity)"},
+    # Sy of drained Sumatran peat: an exponential through Sy 0.3 at the surface and 0.1 at -1.5 m, the values Ismail et al. (2021, Hydrology
+    # Research 52(6), 1372) give from the rain-to-rise ratio at Pulau Padang (our fit; their Fig. 10b has no coefficients). T as the Urzainki sets.
+    "drained-ismail-small": {"params": (0.3, 0.73, 50.0, 2.5), "source": "Sy after Ismail et al. 2021 (fitted here), T as Urzainki et al. 2023 scenario 1"},
+    "drained-ismail-large": {"params": (0.3, 0.73, 500.0, 2.5), "source": "Sy after Ismail et al. 2021 (fitted here), T as Urzainki et al. 2023 scenario 2"},
 }
 PEAT_TABLES = ("urzainki2020", *TROPICAL_SETS)
 
