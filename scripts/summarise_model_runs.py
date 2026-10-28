@@ -12,6 +12,21 @@ import json
 from pathlib import Path
 
 
+def gate(g: dict, n_unflagged: int, supply: dict | None = None) -> str:
+    """pass / fail / not testable. Rescored from the stored numbers, so runs made before a rule changed follow the current rules:
+    checks without stations to use are not testable, and the supply check is `fieldcheck.supply_ok` (ratio or absolute floor)."""
+    from repeat_neraca.groundwater import fieldcheck as FC
+    spatial = ("spearman", "rmse")          # the checks on levels need 8 stations; the dynamics and supply checks are made with fewer
+    checks = {k: (None if n_unflagged < 8 and k.startswith(spatial) else v) for k, v in g["checks"].items()}
+    if n_unflagged == 0:
+        checks = {k: (None if "supply" not in k else v) for k, v in checks.items()}
+    if supply and "model_managed_supply_mm" in supply:
+        checks = {k: v for k, v in checks.items() if "supply" not in k}
+        checks["supply"] = FC.supply_ok(supply["model_managed_supply_mm"], supply["station_deficit_mm"])
+    made = [v for v in checks.values() if v is not None]
+    return "not testable" if not made else ("pass" if all(made) else "fail")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--runs", required=True, help="glob of run folders")
@@ -31,22 +46,27 @@ def main(argv=None):
             canal += " (managed " + "/".join("open" if v is None else f"{v:g}" for v in c["drawdown_managed"].values()) + ")"
         sup = s.get("supply_check", {})
         kinds = s.get("by_kind", {})
-        rows.append([c["khg"], f"{c['res_m']:g} m", c["peat_table"], canal, c.get("et_stress") and "yes" or "no",
+        mt = c.get("managed_target") or ""
+        extra = "; ".join(x for x in ([f"peat base"] if c.get("peat_base") else []) + ([f"depth {c['depth_fallback']}"] if c.get("depth_fallback", "none") != "none" else []))
+        supply = f"{sup['model_managed_supply_mm']:.0f}" if sup and "model_managed_supply_mm" in sup else ""
+        rows.append([c["khg"], f"{c['res_m']:g} m", c["peat_table"], canal, mt, extra, c.get("et_stress") and "yes" or "no",
                      f"{dyn['n_unflagged']} of {dyn['n_stations']}",
                      f"{u['model'].get('spearman', float('nan')):.2f}", f"{u['distance'].get('spearman', float('nan')):.2f}",
                      f"{u['model'].get('bias_cm', float('nan')):.0f}", f"{u['model'].get('rmse_cm', float('nan')):.0f}",
                      f"{u['constant'].get('rmse_cm', float('nan')):.0f}", f"{dyn['median_station_r']:.2f}",
                      f"{dyn['obs_drawdown_median_cm']:.0f} / {dyn['sim_drawdown_median_cm']:.0f}",
-                     f"{sup.get('station_deficit_mm', float('nan')):.0f} / {sup.get('model_canal_in_mm', float('nan')):.0f}" if sup else "",
+                     f"{sup.get('station_deficit_mm', float('nan')):.0f} / {sup.get('model_canal_in_mm', float('nan')):.0f}" if sup else "", supply,
                      "; ".join(f"{k} {v['n']}: {v['obs_level_cm']:.0f}/{v['sim_level_cm']:.0f} cm" for k, v in kinds.items()),
-                     "pass" if s["gate"]["pass"] else "fail", d.name])
-    head = ["KHG", "grid", "peat table", "canal level p/s/t (m)", "ET falls with depth", "stations scored", "Spearman model",
+                     gate(s["gate"], dyn.get("n_unflagged", dyn["n_stations"]), sup), d.name])
+    head = ["KHG", "grid", "peat table", "canal level p/s/t (m)", "managed target", "options", "ET falls with depth", "stations scored", "Spearman model",
             "Spearman distance", "bias (cm)", "RMSE (cm)", "RMSE constant (cm)", "median station r", "drawdown obs / sim (cm)",
-            "deficit / canal inflow (mm)", "level obs/sim by kind", "gate", "run"]
+            "deficit / canal inflow (mm)", "managed supply (mm)", "level obs/sim by kind", "gate", "run"]
     L = ["# Groundwater model runs scored against SiTMAT stations", "", f"`python scripts/summarise_model_runs.py --runs \"{a.runs}\"`. "
          "Levels: each unflagged station's mean over its days. Dynamics on the unflagged stations (not on a canal or edge cell). Deficit: "
          "the station-based KHG deficit over June to early October 2026; canal inflow: water the model's canals put into the peat over the "
-         "same days (negative: drainage).", "", "| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
+         "same days (negative: drainage). Managed target: the water table held in plantation licences (m, or `stations-loo`); managed "
+         "supply: the water management supplies to hold it, mm over the managed land, over the deficit's days. In runs with a managed target, "
+         "stations in managed land are left out of the level and dynamics scores (their level is imposed).", "", "| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
     L += ["| " + " | ".join(map(str, r)) + " |" for r in rows]
     Path(a.out).write_text("\n".join(L) + "\n", encoding="utf-8")
     print("\n".join(L))

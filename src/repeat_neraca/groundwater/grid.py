@@ -58,6 +58,7 @@ class RealKHG:
     units: np.ndarray | None = None       # int raster of sub-KHG index (-1 outside) and their ids
     unit_ids: list = field(default_factory=list)
     notes: dict = field(default_factory=dict)
+    peat_depth_source: np.ndarray | None = None     # int8 per cell: 1 the peat-depth raster, 0 filled with the median (2: a fallback layer)
 
     @property
     def shape(self):
@@ -117,6 +118,7 @@ def load(cfg: dict, res_m: float) -> RealKHG:
     notes["peat_depth_valid_in_domain"] = float(okd[domain].mean())
     med = float(np.nanmedian(depth[okd & domain])) if (okd & domain).any() else 3.0
     depth = np.where(okd, depth, med)
+    depth_source = okd.astype("int8")
     notes["peat_depth_median_m"] = med
 
     cg = gpd.read_file(cfg["canals"]["path"]).to_crs(crs)
@@ -152,7 +154,8 @@ def load(cfg: dict, res_m: float) -> RealKHG:
         unit_ids = list(ug["unit_id"].astype(str)) if "unit_id" in ug.columns else [str(i) for i in range(len(ug))]
     return RealKHG(name=cfg.get("name", "khg"), crs=crs, dx=float(res_m), transform=transform, domain=domain, boundary=boundary,
                    surface=surface.astype("float64"), peat_depth=depth.astype("float64"), canal=canal, canal_length_km=length,
-                   area_km2=float(domain.sum() * res_m ** 2 / 1e6), stations=stations, units=units, unit_ids=unit_ids, notes=notes)
+                   area_km2=float(domain.sum() * res_m ** 2 / 1e6), stations=stations, units=units, unit_ids=unit_ids, notes=notes,
+                   peat_depth_source=depth_source)
 
 
 def fixed_head(khg: RealKHG, canal_drawdown: float, river_stage_below_edge: float, classes=("primary", "secondary")):

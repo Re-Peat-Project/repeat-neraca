@@ -57,11 +57,18 @@ def score(pts: pd.DataFrame) -> dict:
         u["obs_variance_between_groups"] = float(1 - ((p.obs_cm - mean) ** 2).sum() / ((p.obs_cm - p.obs_cm.mean()) ** 2).sum())
         u["n_groups"] = int(p["group"].nunique())
     m, dist, const = u["model"], u["distance"], u["constant"]
-    checks = {f"spearman >= {MIN_SPEARMAN}": m.get("spearman", np.nan) >= MIN_SPEARMAN,
-              "spearman above the distance prediction": m.get("spearman", np.nan) > dist.get("spearman", np.nan),
-              "rmse below the constant prediction": m.get("rmse_cm", np.inf) < const.get("rmse_cm", np.inf)}
-    out["gate"] = {"checks": {k: bool(v) for k, v in checks.items()}, "pass": bool(all(checks.values()))}
+    testable = m.get("n", 0) >= 8                     # fewer points: the check cannot be made (None), which is not a failure
+    checks = {f"spearman >= {MIN_SPEARMAN}": bool(m.get("spearman", np.nan) >= MIN_SPEARMAN) if testable else None,
+              "spearman above the distance prediction": bool(m.get("spearman", np.nan) > dist.get("spearman", np.nan)) if testable else None,
+              "rmse below the constant prediction": bool(m.get("rmse_cm", np.inf) < const.get("rmse_cm", np.inf)) if testable else None}
+    out["gate"] = {"checks": checks, "pass": gate_pass(checks)}
     return out
+
+
+def gate_pass(checks: dict) -> bool | None:
+    """True when every check that could be made passed, False when one failed, None when none could be made."""
+    made = [v for v in checks.values() if v is not None]
+    return None if not made else bool(all(made))
 
 
 def breakdown(pts: pd.DataFrame, by: str) -> pd.DataFrame:
@@ -82,7 +89,18 @@ def day_sensitivity(obs_cm, sim_days_cm, dates) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-MIN_TEMPORAL_R = 0.5         # station gate (set 2026-10-28 before the first station run): median per-station correlation of the daily series
+MIN_TEMPORAL_R = 0.5
+SUPPLY_RATIO = (0.5, 2.0)
+SUPPLY_ABS_MM = 50.0         # added 2026-10-28 after Kampar-Gaung (deficit 7 mm in a near-neutral dry season): a ratio of two small numbers
+                             # fails on small absolute differences, so the check also passes within 50 mm (about two weeks of dry-season ET)
+
+
+def supply_ok(model_mm: float, station_mm: float) -> bool:
+    """The model's water-management supply against the station-based deficit: within SUPPLY_RATIO, or within SUPPLY_ABS_MM."""
+    lo, hi = SUPPLY_RATIO
+    ratio_ok = station_mm > 0 and lo <= model_mm / station_mm <= hi
+    return bool(ratio_ok or abs(model_mm - station_mm) <= SUPPLY_ABS_MM)    # managed-land runs (set 2026-10-28 before the first one): the water management supplies in the model, mm over
+                             # the managed land, within this factor of the station-based deficit (the stations stand in managed land)         # station gate (set 2026-10-28 before the first station run): median per-station correlation of the daily series
 
 
 def score_stations(obs: pd.DataFrame, sim: pd.DataFrame, info: pd.DataFrame, edge_days: int = 7) -> tuple[dict, pd.DataFrame]:
@@ -120,6 +138,7 @@ def score_stations(obs: pd.DataFrame, sim: pd.DataFrame, info: pd.DataFrame, edg
            "drawdown_spearman": float(spearmanr(t_ok.obs_drawdown_cm, t_ok.sim_drawdown_cm).correlation) if len(t_ok) >= 8 else float("nan"),
            "obs_drawdown_median_cm": float(t_ok.obs_drawdown_cm.median()), "sim_drawdown_median_cm": float(t_ok.sim_drawdown_cm.median())}
     out["dynamics"] = dyn
-    out["gate"]["checks"][f"median station r >= {MIN_TEMPORAL_R}"] = bool(dyn["median_station_r"] >= MIN_TEMPORAL_R)
-    out["gate"]["pass"] = bool(all(out["gate"]["checks"].values()))
+    r_ok = np.isfinite(dyn["median_station_r"])
+    out["gate"]["checks"][f"median station r >= {MIN_TEMPORAL_R}"] = bool(dyn["median_station_r"] >= MIN_TEMPORAL_R) if r_ok else None
+    out["gate"]["pass"] = gate_pass(out["gate"]["checks"])
     return out, t

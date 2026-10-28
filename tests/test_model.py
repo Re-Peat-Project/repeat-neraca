@@ -97,3 +97,65 @@ def test_drained_ismail_sy_matches_the_reported_values():
     t = PeatTable.named("drained-ismail-large")
     assert abs(t.sy(np.array([-0.01]))[0] - 0.3) < 0.01
     assert abs(t.sy(np.array([-1.5]))[0] - 0.1) < 0.01
+
+
+def test_managed_land_is_held_at_its_target_and_the_supply_is_the_storage_it_took():
+    k = small_khg()
+    k.canal["primary"][:] = False
+    target = np.full(k.shape, np.nan)
+    target[:, :4] = 0.4
+    table = PeatTable.named("tropical-small")
+    n = 40
+    r = SIM.run(k, np.full(n, -0.006), table, SIM.Boundary({"primary": None}, 0.3, managed_target=target))
+    z = r["final_depth_m"]
+    held = r["held"]
+    assert np.allclose(z[held], -0.4, atol=1e-9)                         # never deeper than the target
+    assert (z[~held & k.domain] < -0.4).all()                            # unmanaged land keeps drying
+    assert np.nansum(r["series"]["managed_supply_m3"]) > 0
+    one = np.interp(-0.4, table.zeta, table.storage) - np.interp(-0.41, table.zeta, table.storage)
+    assert one > 0                                                       # storage rises towards the surface, so topping up costs water
+
+
+def test_peat_base_stops_et_below_the_peat():
+    k = small_khg()
+    k.canal["primary"][:] = False
+    k.peat_depth[:] = 0.3
+    P, ET = np.zeros(60), np.full(60, 0.006)
+    b = SIM.Boundary({"primary": None}, 0.3)
+    free = SIM.run(k, P - ET, PeatTable.named("drained-ismail-large"), b, rain_m_day=P, et_m_day=ET)
+    based = SIM.run(k, P - ET, PeatTable.named("drained-ismail-large"), b, rain_m_day=P, et_m_day=ET, peat_base=True)
+    assert based["series"]["mean_depth_m"][-1] > free["series"]["mean_depth_m"][-1]
+    assert based["series"]["mean_depth_m"][-1] > -0.6                    # stops close to the 0.3 m peat base
+
+
+def test_supply_check_passes_within_a_ratio_or_a_small_absolute_difference():
+    assert FC.supply_ok(244, 290) and FC.supply_ok(41, 7)          # ratio; wet year, 34 mm apart
+    assert not FC.supply_ok(104, 7) and not FC.supply_ok(500, 200)
+
+
+def test_unit_table_counts_open_and_managed_land_per_unit():
+    from repeat_neraca.model import unit_table
+    k = small_khg()
+    k.canal["primary"][:] = False
+    target = np.full(k.shape, np.nan)
+    target[:, :4] = 0.4
+    n = 120                                                               # long enough for the water table to reach the 0.4 m target
+    r = SIM.run(k, np.full(n, -0.006), PeatTable.named("tropical-small"), SIM.Boundary({"primary": None}, 0.3, managed_target=target),
+                season_days=np.ones(n, bool))
+    open_cells = k.domain & ~r["fixed"] & ~r["held"]
+    t = unit_table(k, r, open_cells, n)
+    assert len(t) == 1 and t.unit_id[0] == "KHG"
+    assert t.managed_km2[0] > 0 and t.open_km2[0] > 0 and t.managed_supply_mm[0] > 0
+    assert 0 <= t.open_days_deeper_40cm[0] <= n
+
+
+def test_a_block_reach_raises_the_canal_level_and_keeps_the_higher_one():
+    k = small_khg()
+    reach = np.full(k.shape, np.nan)
+    reach[2:5, 4] = 0.3                                                   # block reach on the canal: water 0.3 m below the land
+    fixed, head, _ = SIM.Boundary({"primary": 1.2}, 0.3, canal_override=reach).heads(k)
+    assert np.allclose(head[2:5, 4], 5.0 - 0.3) and np.allclose(head[6:8, 4], 5.0 - 1.2)
+    target = np.full(k.shape, np.nan)
+    target[2:5, :] = 0.1
+    _, head2, _ = SIM.Boundary({"primary": 1.2}, 0.3, managed_target=target, canal_override=reach).heads(k)
+    assert np.allclose(head2[2:5, 4], 5.0 - 0.1)                         # a managed level above the block level is kept

@@ -39,6 +39,8 @@ from repeat_neraca.params import Registry
 CLASSES = ("primary", "secondary", "tertiary")
 LICENCES = "landstatus/ALL_Updade__IZIN_USAHA__PBPH_Perkebunan_HTRKM_Tambang__2025.gpkg"   # under REPEAT_DATA
 MANAGED_LICENCES = ("PBPH", "Perkebunan Kelapa Sawit")
+REGULATORY_TARGET_M = 0.40     # PP 57/2016: the water table of cultivated peat at most 0.4 m below the surface at the compliance points
+BBSDLP_DEPTH_M = {"D1": 0.75, "D2": 1.5, "D3": 2.5, "D4": 4.0, "D5": 6.0, "D6": 8.0}   # class midpoints (D6, >700 cm: 8 m assumed)
 CANAL_NAMES = {"primary": ["Kanal Primer"], "secondary": ["Kanal Sekunder"], "tertiary": ["Kanal Tersier"]}
 
 
@@ -138,9 +140,113 @@ def licences(kf: Path):
         g = gpd.read_file(src, bbox=tuple(k.total_bounds))
         g = g[g.intersects(k.union_all())].clip(k)
         out.parent.mkdir(parents=True, exist_ok=True)
-        g.to_file(out, driver="GPKG")
-        write_manifest_row(kf, "national/izin_usaha_2025.gpkg", LICENCES, "business licences 2025 (IZIN_USAHA), clipped (repeat_neraca.model)", len(g))
+        tmp = out.with_name(f"izin_usaha_2025.{os.getpid()}.tmp.gpkg")          # runs started together must not write the same file
+        g.to_file(tmp, driver="GPKG")
+        try:
+            os.rename(tmp, out)
+            write_manifest_row(kf, "national/izin_usaha_2025.gpkg", LICENCES, "business licences 2025 (IZIN_USAHA), clipped (repeat_neraca.model)", len(g))
+        except FileExistsError:
+            tmp.unlink()                                           # another run wrote it first: use theirs
     return gpd.read_file(out)
+
+
+def depth_fallback(kf: Path, khg) -> dict:
+    """Fill the cells the peat-depth raster leaves empty from the BBSDLP depth classes (class midpoints); returns the share per source."""
+    from rasterio import features
+    f = kf / "00_inputs" / "national" / "kedalaman_gambut_bbsdlp.gpkg"
+    if f.exists():
+        import geopandas as gpd
+        g = gpd.read_file(f).to_crs(khg.crs)
+        g = g[g["KODE_GBT"].isin(BBSDLP_DEPTH_M)]
+        v = features.rasterize([(x, BBSDLP_DEPTH_M[k]) for x, k in zip(g.geometry, g["KODE_GBT"])], out_shape=khg.shape,
+                               transform=khg.transform, fill=0.0, dtype="float32") if len(g) else np.zeros(khg.shape, "float32")
+        use = (khg.peat_depth_source == 0) & (v > 0)
+        khg.peat_depth = np.where(use, v, khg.peat_depth)
+        khg.peat_depth_source = np.where(use, 2, khg.peat_depth_source).astype("int8")
+    d = khg.domain
+    return {"peat_depth_raster": float((khg.peat_depth_source[d] == 1).mean()), "peat_depth_bbsdlp": float((khg.peat_depth_source[d] == 2).mean()),
+            "peat_depth_median_fill": float((khg.peat_depth_source[d] == 0).mean())}
+
+
+def managed_targets(kf: Path, khg, kinds, mode: str, stn, levels: pd.Series | None) -> tuple[np.ndarray, dict, pd.DataFrame]:
+    """Target water table (m below the surface) per cell of managed land (licences of `kinds`), NaN elsewhere.
+
+    mode: a number (metres, the same for every licence), or 'stations-loo': each licence gets the median level of the concession stations
+    outside it (leave one concession out), else the regulatory 0.4 m."""
+    from rasterio import features
+    g = licences(kf)
+    g = g[g["IZIN_USAHA"].isin(kinds)].to_crs(khg.crs).reset_index(drop=True)
+    ids = features.rasterize([(x, i) for i, x in enumerate(g.geometry) if x is not None and not x.is_empty], out_shape=khg.shape,
+                             transform=khg.transform, fill=-1, dtype="int32") if len(g) else np.full(khg.shape, -1, "int32")
+    ids = np.where(khg.domain, ids, -1)
+    rows = []
+    if mode == "stations-loo":
+        s = stn.assign(level_m=stn.station_id.map(levels) / 100.0, lic=ids[stn.row, stn.col])
+        s = s[s.level_m.notna() & ~stn.station_id.str.startswith("community/")]
+        for i in range(len(g)):
+            others = s[s.lic != i].level_m
+            rows.append({"licence": i, "holder": g.loc[i, "PERUSAHAAN"], "type": g.loc[i, "IZIN_USAHA"], "own_stations": int((s.lic == i).sum()),
+                         "target_m": float(others.median()) if len(others) else REGULATORY_TARGET_M,
+                         "source": f"median of {len(others)} concession stations outside it" if len(others) else "regulatory 0.4 m (no other stations)"})
+        unplaced = int((s.lic < 0).sum())
+    else:
+        for i in range(len(g)):
+            rows.append({"licence": i, "holder": g.loc[i, "PERUSAHAAN"], "type": g.loc[i, "IZIN_USAHA"], "own_stations": 0,
+                         "target_m": float(mode), "source": "fixed target"})
+        unplaced = 0
+    t = pd.DataFrame(rows, columns=["licence", "holder", "type", "own_stations", "target_m", "source"])
+    lut = np.full(len(g) + 1, np.nan)
+    if len(t):
+        lut[t.licence.values] = t.target_m.values
+    target = np.where(ids >= 0, lut[np.clip(ids, 0, None)], np.nan)
+    return target, {"managed_licences": list(kinds), "managed_share_of_khg": float(np.isfinite(target)[khg.domain].mean()),
+                    "managed_target_mode": str(mode), "concession_stations_outside_licences": unplaced}, t
+
+
+def pump_gpkg(kf: Path, dem: str, layer: str) -> tuple[Path, str]:
+    """repeat-pump's GeoPackage holding `layer`: the variant's own run first, then any variant (block reaches are relative to the land)."""
+    import pyogrio
+    for d in [kf / "05_pump" / dem, kf / "05_pump", *sorted((kf / "05_pump").glob("*/"))]:
+        for f in sorted(d.glob("*.gpkg")) if d.is_dir() else []:
+            if layer in [x[0] for x in pyogrio.list_layers(f)]:
+                return f, str(f.relative_to(kf))
+    raise SystemExit(f"no repeat-pump GeoPackage with layer {layer} in {kf / '05_pump'}: run repeat-pump first")
+
+
+def source(arg: str, kf: Path, dem: str, layer: str):
+    """('pump' -> repeat-pump's layer) or 'path[:layer]' -> (GeoDataFrame, description)."""
+    import geopandas as gpd
+    if arg == "pump":
+        f, rel = pump_gpkg(kf, dem, layer)
+        return gpd.read_file(f, layer=layer), f"{rel}, layer {layer}"
+    path, _, lyr = arg.partition(":")
+    return gpd.read_file(path, layer=lyr or None), arg
+
+
+def block_levels(kf: Path, dem: str, khg, arg: str) -> tuple[np.ndarray, dict]:
+    """Canal water depth below the land (m) along each block's reach, NaN elsewhere."""
+    from rasterio import features
+    g, src = source(arg, kf, dem, "sekat_reach")
+    g = g[g["depth_m"].notna()].to_crs(khg.crs)
+    g = g.sort_values("depth_m", ascending=False)                    # where reaches overlap, the shallower level is written last and wins
+    v = features.rasterize([(x, float(d)) for x, d in zip(g.geometry, g["depth_m"])], out_shape=khg.shape, transform=khg.transform,
+                           fill=np.nan, dtype="float32", all_touched=True) if len(g) else np.full(khg.shape, np.nan, "float32")
+    v = np.where(khg.domain, v, np.nan)
+    return v, {"blocks": src, "block_reaches": int(len(g)), "block_reach_cells": int(np.isfinite(v).sum())}
+
+
+def supply_areas(kf: Path, dem: str, khg, arg: str, target: float) -> tuple[np.ndarray, dict]:
+    """Target water table (m below the surface) on the land a scenario supplies with water, NaN elsewhere."""
+    from rasterio import features
+    g, src = source(arg, kf, dem, "interventions")
+    if arg == "pump":
+        g = g[g["intervention"].astype(str).str.contains("water")]
+    g = g.to_crs(khg.crs)
+    m = features.rasterize([(x, 1) for x in g.geometry if x is not None and not x.is_empty], out_shape=khg.shape, transform=khg.transform,
+                           fill=0, dtype="uint8").astype(bool) if len(g) else np.zeros(khg.shape, bool)
+    m &= khg.domain
+    return np.where(m, target, np.nan), {"supply": src, "supply_polygons": int(len(g)), "supply_share_of_khg": float(m[khg.domain].mean()),
+                                         "supply_target_m": target}
 
 
 def managed_raster(kf: Path, khg, kinds) -> tuple[np.ndarray, dict]:
@@ -176,6 +282,20 @@ def main(argv=None):
     ap.add_argument("--fetch", action="store_true", help="fetch missing forcing from Earth Engine")
     ap.add_argument("--drawdown-managed", default=None,
                     help="canal level below the surface (m) for canal cells in managed land (one value or per class); default: as --drawdown")
+    ap.add_argument("--managed-target", default=None,
+                    help="hold managed land at a target water table: metres below the surface (e.g. 0.4, PP 57/2016), or 'stations-loo' (each "
+                         "licence's target = median level of the concession stations outside it; calibrated, leave-one-concession-out)")
+    ap.add_argument("--peat-base", action="store_true", help="no ET from a cell whose water table is below the peat base")
+    ap.add_argument("--season", default="06-01,09-30", help="season of the per-cell maps and the unit table (month-day,month-day), in the last year of the run")
+    ap.add_argument("--depth-fallback", choices=["none", "bbsdlp"], default="none",
+                    help="fill peat-depth raster gaps cell by cell from the BBSDLP 1:50k depth classes (00_inputs/national), then the median")
+    ap.add_argument("--blocks", default="none",
+                    help="canal blocks of a scenario: 'pump' (repeat-pump's sekat_reach: each block's reach and its water depth below the land), "
+                         "or a GeoPackage path[:layer] with lines and a depth_m field; 'none' (default)")
+    ap.add_argument("--supply", default="none",
+                    help="pumping of a scenario: 'pump' (the sub-KHG of repeat-pump's interventions layer that receive water), or a GeoPackage "
+                         "path[:layer] of polygons; the land is held at --supply-target like managed land, and the water it takes is the pumping need")
+    ap.add_argument("--supply-target", type=float, default=REGULATORY_TARGET_M, help="water table held where water is supplied, m below the surface")
     ap.add_argument("--managed-licences", default=",".join(MANAGED_LICENCES),
                     help="IZIN_USAHA values of the licence layer that count as managed land (plantations with water management)")
     ap.add_argument("--et-stress", choices=["none", "drained", "natural"], default="none",
@@ -190,15 +310,25 @@ def main(argv=None):
     edge = float(reg["river_stage_below_edge"]) if a.edge_stage is None else a.edge_stage
     tag = "_".join(f"{c[0]}{'x' if v is None else f'{v:g}'}" for c, v in dd.items())
     ddm = parse_drawdown(a.drawdown_managed, float(reg["canal_drawdown"])) if a.drawdown_managed else None
+    if ddm and a.managed_target:
+        raise SystemExit("--drawdown-managed and --managed-target are alternatives: give one")
     if ddm:
         tag += "_m" + "_".join(f"{c[0]}{'x' if v is None else f'{v:g}'}" for c, v in ddm.items())
-    run_name = a.run or f"{a.peat_table}_{tag}_e{edge:g}_{a.res:g}m" + ("" if a.et_stress == "none" else f"_et{a.et_stress}")
+    if a.managed_target:
+        tag += "_mt" + ("loo" if a.managed_target == "stations-loo" else f"{float(a.managed_target):g}")
+    if a.blocks != "none":
+        tag += "_blk"
+    if a.supply != "none":
+        tag += f"_sup{a.supply_target:g}"
+    run_name = a.run or (f"{a.peat_table}_{tag}_e{edge:g}_{a.res:g}m" + ("" if a.et_stress == "none" else f"_et{a.et_stress}")
+                         + ("_pb" if a.peat_base else "") + ("" if a.depth_fallback == "none" else f"_d{a.depth_fallback}"))
     out = kf / "03_neraca" / a.dem / "runs" / "model" / run_name
     out.mkdir(parents=True, exist_ok=True)
     log = lambda m: print(m, flush=True)
 
     cfg, notes = khg_config(kf, a.dem)
     khg = G.load(cfg, a.res)
+    depth_sources = depth_fallback(kf, khg) if a.depth_fallback == "bbsdlp" else None
     f = forcing(kf, a.start, a.end, a.rain, a.et, a.fetch)
     net = (f.P_mm - f.ET_mm).values / 1000.0
     dates = f.index
@@ -212,31 +342,85 @@ def main(argv=None):
               kf / "03_neraca" / "inputs")             # the model's own station export (may include community stations), else the deficit's
     sp, sdp = sd / "stations.csv", sd / "stations_daily.csv"
     stn = on_grid(pd.read_csv(sp), khg) if sp.exists() and sdp.exists() else None
+    if stn is not None:                                          # stations whose record does not overlap the run cannot score it
+        sd_dates = pd.to_datetime(pd.read_csv(sdp, usecols=["date"]).date)
+        if ((sd_dates >= dates[0]) & (sd_dates <= dates[-1])).sum() == 0:
+            log(f"stations in {sd} do not overlap the run ({sd_dates.min().date()} to {sd_dates.max().date()}): not scored")
+            stn = None
     window = np.zeros(len(dates), bool)
     if pts is not None and len(pts):
         window = (dates >= pd.Timestamp(pts.date_from.min())) & (dates <= pd.Timestamp(pts.date_to.max()))
 
-    managed, mnotes = (None, {})
+    managed, mnotes, target, targets = (None, {}, None, None)
+    kinds = [s.strip() for s in a.managed_licences.split(",")]
     if ddm:
-        managed, mnotes = managed_raster(kf, khg, [s.strip() for s in a.managed_licences.split(",")])
-    b = SIM.Boundary(dd, edge, managed, ddm)
+        managed, mnotes = managed_raster(kf, khg, kinds)
+    if a.managed_target:
+        levels = pd.read_csv(sdp).groupby("station_id").depth_cm.mean() if stn is not None else None
+        if a.managed_target == "stations-loo" and levels is None:
+            raise SystemExit("--managed-target stations-loo needs station files")
+        target, mnotes, targets = managed_targets(kf, khg, kinds, a.managed_target, stn, levels)
+        managed = np.isfinite(target)
+        targets.to_csv(out / "managed_targets.csv", index=False, float_format="%.3f")
+    blocks, snotes = None, {}
+    if a.blocks != "none":
+        blocks, n1 = block_levels(kf, a.dem, khg, a.blocks)
+        snotes.update(n1)
+    if a.supply != "none":                                       # pumped land is held like managed land; where both, the shallower target
+        sup, n2 = supply_areas(kf, a.dem, khg, a.supply, a.supply_target)
+        snotes.update(n2)
+        target = sup if target is None else np.where(np.isfinite(target) & np.isfinite(sup), np.fmin(target, sup), np.where(np.isfinite(target), target, sup))
+        managed = np.isfinite(target)
+    mnotes.update(snotes)
+    b = SIM.Boundary(dd, edge, managed if ddm else None, ddm, target, blocks)
     table = PeatTable.named(a.peat_table)
     log(f"{kf.name} {a.dem} {a.res:g} m, {khg.shape}, {len(dates)} days, peat table {a.peat_table}, drawdown {dd}, edge {edge:g} m")
     n_pts = 0 if pts is None else len(pts)
     rows = np.concatenate([[] if pts is None else pts.row.values, [] if stn is None else stn.row.values]).astype(int)
     cols = np.concatenate([[] if pts is None else pts.col.values, [] if stn is None else stn.col.values]).astype(int)
     stress = None if a.et_stress == "none" else ((-0.70, -1.82) if a.et_stress == "natural" else (float(reg["et_stress_start"]), float(reg["et_stress_end"])))
-    r = SIM.run(khg, net, table, b, a.h0, points=(rows, cols) if len(rows) else None, keep_days=window, log=log,
-                rain_m_day=f.P_mm.values / 1000.0, et_m_day=f.ET_mm.values / 1000.0, et_stress=stress)
+    s0, s1 = (pd.Timestamp(f"{dates[-1].year}-{x}") for x in a.season.split(","))
+    season = (dates >= s0) & (dates <= s1)
+    r = SIM.run(khg, net, table, b, a.h0, points=(rows, cols) if len(rows) else None, keep_days=window, log=log, season_days=season,
+                rain_m_day=f.P_mm.values / 1000.0, et_m_day=f.ET_mm.values / 1000.0, et_stress=stress, peat_base=a.peat_base)
     sampled = None if r["points"] is None else -100 * r["points"]          # days x samples, cm positive down
 
     s = r["series"]
     series = pd.DataFrame({"date": dates.date, "P_mm": f.P_mm.values, "ET_mm": f.ET_mm.values, "mean_depth_cm": -100 * s["mean_depth_m"],
                            "share_deeper_40cm": s["share_deeper_0_4"], "canal_in_mm": s["canal_in_mm"], "edge_in_mm": s["edge_in_mm"],
-                           "et_share": s["et_share"]})
+                           "et_share": s["et_share"], "unmanaged_mean_depth_cm": -100 * s["unmanaged_mean_depth_m"],
+                           "unmanaged_share_deeper_40cm": s["unmanaged_share_deeper_0_4"], "managed_supply_mm": s["managed_supply_mm"],
+                           "managed_supply_m3": s["managed_supply_m3"]})
     series.to_csv(out / "model_series.csv", index=False, float_format="%.4f")
     write_tif(out / "model_depth_window.tif", -100 * r["window_mean_depth_m"], khg)
     write_tif(out / "model_depth_end.tif", -100 * r["final_depth_m"], khg)
+    open_cells = khg.domain & ~r["fixed"] & (~r["held"] if r["held"] is not None else True)
+    write_tif(out / "model_season_days_deeper_40cm.tif", np.where(open_cells, r["season_days_deeper_0_4"], np.nan), khg)   # managed and canal cells left out
+    write_tif(out / "model_season_mean_depth.tif", -100 * r["season_mean_depth_m"], khg)
+    if r["held"] is not None:
+        write_tif(out / "model_season_managed_supply.tif", np.where(r["held"], r["season_supply_mm"], np.nan), khg)
+    units = unit_table(khg, r, open_cells, int(r["season_n_days"]))
+    units.to_csv(out / "model_units.csv", index=False, float_format="%.2f")
+    if r["held"] is not None:                                   # held cells are imposed: a "still needs rewetting" map must leave them out
+        write_tif(out / "model_managed_target.tif", np.where(khg.domain, 100 * target, np.nan), khg)
+    inputs = [("DTM", notes["dtm"], 1.0), ("KHG boundary", "00_inputs/khg.gpkg", 1.0), ("canals", "00_inputs/canals.gpkg (KET_KANAL)", 1.0),
+              ("rain", f"{a.rain}, KHG mean", 1.0), ("ET", f"{a.et}, KHG mean", 1.0)]
+    ds = depth_sources or {"peat_depth_raster": khg.notes["peat_depth_valid_in_domain"], "peat_depth_median_fill": 1 - khg.notes["peat_depth_valid_in_domain"]}
+    inputs += [("peat depth", "00_inputs/peat_depth.tif", ds["peat_depth_raster"])]
+    if "peat_depth_bbsdlp" in ds:
+        inputs += [("peat depth", "BBSDLP 1:50k depth classes (fallback)", ds["peat_depth_bbsdlp"])]
+    inputs += [("peat depth", f"KHG median {khg.notes['peat_depth_median_m']:.1f} m (fallback)", ds["peat_depth_median_fill"])]
+    if managed is not None:
+        inputs += [("managed land", "2025 licences " + ", ".join(kinds), float(managed[khg.domain].mean()))]
+    if a.managed_target:
+        inputs += [("managed target", mnotes["managed_target_mode"], float(managed[khg.domain].mean()))]
+    if blocks is not None:
+        inputs += [("canal blocks (scenario)", mnotes["blocks"], float(np.isfinite(blocks)[khg.domain].mean()))]
+    if a.supply != "none":
+        inputs += [("water supply (scenario)", mnotes["supply"], mnotes["supply_share_of_khg"])]
+    inputs += [("stations", str(sp.relative_to(kf)) if stn is not None else "none", float("nan")),
+               ("field points", "00_inputs/field_wtd.csv" if pts is not None else "none", float("nan"))]
+    pd.DataFrame(inputs, columns=["input", "source", "share_of_khg"]).to_csv(out / "inputs.csv", index=False, float_format="%.3f")
     fixed_share = {lab: float((r["label"][khg.domain] == v).mean()) for lab, v in (("edge", 1), ("canal", 2))}
     if managed is not None:
         canal = r["label"] == 2
@@ -267,7 +451,8 @@ def main(argv=None):
         on_fixed = r["fixed"][stn.row, stn.col]
         group = stn["concession"].fillna("(none)") if "concession" in stn else pd.Series("(none)", index=stn.index)
         info = stn.assign(group=group, dist_m=FC.canal_distance(stn, cfg["canals"]["path"], khg.crs),
-                          flag=np.where(on_fixed, "on_fixed_cell", ""),
+                          flag=np.where(on_fixed, "on_fixed_cell", np.where((r["held"] is not None) & (r["held"][stn.row, stn.col]
+                                                                                    if r["held"] is not None else False), "in_managed_land", "")),
                           managed=managed[stn.row, stn.col] if managed is not None else False)
         keep = [c for c in obs.columns if c in set(info.station_id)]
         st_scores, st_table = FC.score_stations(obs[keep], sim_st[keep], info[["station_id", "group", "dist_m", "flag", "managed"]])
@@ -284,9 +469,20 @@ def main(argv=None):
         if dfile.exists():
             dk = pd.read_csv(dfile).iloc[0]
             sel = (dates >= pd.Timestamp(dk.period_start)) & (dates <= pd.Timestamp(dk.period_end))
+            if sel.sum() == 0:
+                dk = None
+        if dfile.exists() and dk is not None:
             st_scores["supply_check"] = {"period": f"{dk.period_start} to {dk.period_end}", "station_deficit_mm": float(dk.deficit_mm),
                                          "model_canal_in_mm": float(series.canal_in_mm[sel].sum()),
                                          "model_edge_in_mm": float(series.edge_in_mm[sel].sum())}
+            if r["held"] is not None:
+                sup = float(series.managed_supply_mm[sel].sum())
+                lo, hi = FC.SUPPLY_RATIO
+                st_scores["supply_check"].update({"model_managed_supply_mm": sup,
+                                                  "model_managed_supply_m3": float(series.managed_supply_m3[sel].sum())})
+                st_scores["gate"]["checks"][f"managed supply within x{hi:g} or {FC.SUPPLY_ABS_MM:g} mm of the station deficit"] = \
+                    FC.supply_ok(sup, float(dk.deficit_mm))
+                st_scores["gate"]["pass"] = FC.gate_pass(st_scores["gate"]["checks"])
         st_table.to_csv(out / "station_scores.csv", index=False, float_format="%.2f")
         sim_st[keep].rename_axis("date").to_csv(out / "station_sim_daily.csv", float_format="%.1f")      # cm, positive down; rescoring needs no rerun
         (out / "station_scores.json").write_text(json.dumps(st_scores, indent=2, default=float), encoding="utf-8")
@@ -294,12 +490,37 @@ def main(argv=None):
     snap = reg.snapshot()
     (out / "registry_snapshot.json").write_text(json.dumps(snap, indent=2), encoding="utf-8")
     run_cfg = {"khg": kf.name, "dem": a.dem, "res_m": a.res, "start": a.start, "end": a.end, "peat_table": a.peat_table, "drawdown": dd,
-               "edge_stage": edge, "drawdown_managed": ddm, "h0": a.h0, "rain": a.rain, "et": a.et, "et_stress": stress, "inputs": cfg, "notes": {**notes, **khg.notes, **mnotes}}
+               "edge_stage": edge, "drawdown_managed": ddm, "managed_target": a.managed_target, "peat_base": a.peat_base,
+               "depth_fallback": a.depth_fallback, "blocks": a.blocks, "supply": a.supply, "season": a.season, "h0": a.h0, "rain": a.rain, "et": a.et, "et_stress": stress, "inputs": cfg, "notes": {**notes, **khg.notes, **mnotes}}
     (out / "run_config.json").write_text(json.dumps(run_cfg, indent=2, default=str), encoding="utf-8")
-    text = report(kf.name, a, run_cfg, series, window, fixed_share, scores, sens, brk, r["seconds"], snap["sha256"], st_scores)
+    text = report(kf.name, a, run_cfg, series, window, fixed_share, scores, sens, brk, r["seconds"], snap["sha256"], st_scores, units)
     (out / "model_report.md").write_text(text, encoding="utf-8")
     print(text)
     print(f"wrote {out}")
+
+
+def unit_table(khg, r, open_cells, n_days: int) -> pd.DataFrame:
+    """One row per sub-KHG (or one for the KHG without units): season summaries of the cells of that unit.
+
+    open land = free cells not held by water management; managed = held cells. Depths in cm, positive down."""
+    if khg.units is not None and len(khg.unit_ids):
+        parts = [(uid, khg.units == k) for k, uid in enumerate(khg.unit_ids)]
+    else:
+        parts = [("KHG", khg.domain)]
+    held = r["held"] if r["held"] is not None else np.zeros(khg.shape, bool)
+    cell_km2 = khg.dx ** 2 / 1e6
+    rows = []
+    for uid, m in parts:
+        m = m & khg.domain
+        o, h = m & open_cells, m & held
+        days = r["season_days_deeper_0_4"][o]
+        rows.append({"unit_id": uid, "area_km2": m.sum() * cell_km2, "open_km2": o.sum() * cell_km2, "managed_km2": h.sum() * cell_km2,
+                     "season_days": n_days,
+                     "open_mean_depth_cm": float(-100 * r["season_mean_depth_m"][o].mean()) if o.any() else np.nan,
+                     "open_days_deeper_40cm": float(days.mean()) if o.any() else np.nan,
+                     "open_share_deeper_40cm_half_season": float((days > n_days / 2).mean()) if o.any() else np.nan,
+                     "managed_supply_mm": float(r["season_supply_mm"][h].mean()) if h.any() else np.nan})
+    return pd.DataFrame(rows)
 
 
 def on_grid(p: pd.DataFrame, khg) -> pd.DataFrame:
@@ -311,13 +532,21 @@ def on_grid(p: pd.DataFrame, khg) -> pd.DataFrame:
     return p[khg.domain[p.row, p.col]].reset_index(drop=True)
 
 
+def verdict(p) -> str:
+    return "not testable" if p is None else ("pass" if p else "fail")
+
+
+def yes_no(v) -> str:
+    return "not testable" if v is None else ("yes" if v else "no")
+
+
 def md_table(t: pd.DataFrame) -> list[str]:
     cols = [t.index.name or ""] + list(t.columns)
     return ["| " + " | ".join(map(str, cols)) + " |", "|" + "---|" * len(cols)] + [
         "| " + " | ".join(map(str, [i, *r])) + " |" for i, r in zip(t.index, t.itertuples(index=False))]
 
 
-def report(name, a, rc, series, window, fixed_share, scores, sens, brk, seconds, sha, st=None) -> str:
+def report(name, a, rc, series, window, fixed_share, scores, sens, brk, seconds, sha, st=None, units=None) -> str:
     w = series[window]
     L = [f"# Groundwater model, {name}, {a.dem}", "",
          f"Grid {a.res:g} m; peat table `{a.peat_table}`; canal level below the surface (m): "
@@ -340,6 +569,13 @@ def report(name, a, rc, series, window, fixed_share, scores, sens, brk, seconds,
                         "ET realised (share)": g.et_share.mean().round(2)})
     mon.index.name = "month"
     L += ["## By month (KHG mean over the free cells)", "", *md_table(mon), ""]
+    if units is not None and len(units):
+        u = units.set_index("unit_id")[["area_km2", "open_km2", "managed_km2", "open_mean_depth_cm", "open_days_deeper_40cm",
+                                        "open_share_deeper_40cm_half_season", "managed_supply_mm"]].round(2)
+        L += [f"## Season {a.season} per {'sub-KHG' if len(u) > 1 or u.index[0] != 'KHG' else 'KHG'} (`model_units.csv`)", "",
+              f"Open land: free cells not held by water management. Days deeper than 40 cm out of {int(units.season_days.iloc[0])}; share of the open "
+              "land deeper than 40 cm for more than half the season; water supplied to managed land (mm). Maps: `model_season_days_deeper_40cm.tif` "
+              "(open land only), `model_season_mean_depth.tif`, `model_season_managed_supply.tif`.", "", *md_table(u), ""]
     if len(w):
         L += [f"## Window {w.date.iloc[0]} to {w.date.iloc[-1]}", "",
               f"KHG-mean depth {w.mean_depth_cm.min():.0f} to {w.mean_depth_cm.max():.0f} cm; share of the KHG deeper than 40 cm "
@@ -356,7 +592,7 @@ def report(name, a, rc, series, window, fixed_share, scores, sens, brk, seconds,
                 L.append(f"| {sub} | {k} | {v.get('n')} | {v.get('spearman', float('nan')):.2f} | {v.get('bias_cm', float('nan')):.0f} | "
                          f"{v.get('rmse_cm', float('nan')):.0f} | {v.get('mae_cm', float('nan')):.0f} |")
         g = scores["gate"]
-        L += ["", f"**Gate: {'pass' if g['pass'] else 'fail'}** (" + "; ".join(f"{k}: {'yes' if v else 'no'}" for k, v in g["checks"].items())
+        L += ["", f"**Gate: {verdict(g['pass'])}** (" + "; ".join(f"{k}: {yes_no(v)}" for k, v in g["checks"].items())
               + "). Distance prediction: depth = "
               f"{scores['unflagged']['distance_fit']['intercept_cm']:.0f} + {scores['unflagged']['distance_fit']['slope_cm_per_log_m']:.1f} ln(1 + d) cm, fitted to the same points.", ""]
         if "obs_variance_between_groups" in scores["unflagged"]:
@@ -394,12 +630,17 @@ def report(name, a, rc, series, window, fixed_share, scores, sens, brk, seconds,
             L += [f"| {k} | {v['n']} ({v['on_fixed_cell']}) | {v['in_managed_land']} | {v['obs_level_cm']:.0f} | {v['sim_level_cm']:.0f} | {v['obs_drawdown_cm']:.0f} | "
                   f"{v['sim_drawdown_cm']:.0f} |" for k, v in st["by_kind"].items()]
             L += ["", "Medians over the unflagged stations of each kind.", ""]
+        if "supply_check" in st and "model_managed_supply_mm" in st["supply_check"]:
+            c = st["supply_check"]
+            L += [f"Managed land held at its target: water management supplied {c['model_managed_supply_mm']:.0f} mm over the managed land "
+                  f"({c['model_managed_supply_m3'] / 1e6:.1f} million m3) in {c['period']}; the station-based deficit is {c['station_deficit_mm']:.0f} mm "
+                  "(the stations stand in managed land). Stations in managed land are flagged `in_managed_land`: their level is imposed.", ""]
         if "supply_check" in st:
             c = st["supply_check"]
             L += [f"Supply check, {c['period']}: deficit from the stations (repeat-neraca-run) {c['station_deficit_mm']:.0f} mm; water the "
                   f"model's canals put into the peat {c['model_canal_in_mm']:.0f} mm, edge {c['model_edge_in_mm']:.0f} mm.", ""]
-        L += [f"**Station gate: {'pass' if g['pass'] else 'fail'}** ("
-              + "; ".join(f"{k}: {'yes' if v else 'no'}" for k, v in g["checks"].items()) + ").", ""]
+        L += [f"**Station gate: {verdict(g['pass'])}** ("
+              + "; ".join(f"{k}: {yes_no(v)}" for k, v in g["checks"].items()) + ").", ""]
     return "\n".join(L) + "\n"
 
 

@@ -77,7 +77,7 @@ repeat-neraca-run --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml 
 | `repeat-neraca-balance` | `repeat_neraca.balance` | balance per sub-KHG from fetched tables |
 | `repeat-neraca-stations` | `repeat_neraca.stations` | SiTMAT station files for a KHG |
 | `repeat-neraca-map` | `repeat_neraca.maps` | map layers of one KHG: balance per sub-KHG, SiTMAT stations |
-| `repeat-neraca-model` | `repeat_neraca.model` | groundwater model of a KHG from its code: daily water table on a grid, scored against field points (`00_inputs/field_wtd.csv`); in development |
+| `repeat-neraca-model` | `repeat_neraca.model` | groundwater model of a KHG from its code: daily water table on a grid; managed land held at a target (`--managed-target`); block and pumping scenarios from repeat-pump (`--blocks pump`, `--supply pump`); season maps and a table per sub-KHG; scored against stations and field points. In development: method, decisions and results in [docs/groundwater-model-report.md](docs/groundwater-model-report.md) |
 | `repeat-neraca-run` | `repeat_neraca.run` | KHG deficit, and the groundwater model tiers 1 and 2 ([docs/physical-model.md](docs/physical-model.md)) |
 
 ## Inputs
