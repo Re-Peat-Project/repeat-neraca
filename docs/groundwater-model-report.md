@@ -13,9 +13,12 @@ Every number in this report comes from a file in the workspace; the file is name
 - **Implementation.** A new command, `repeat-neraca-model`, builds its inputs from the KHG folder, fetches its forcing (cached), runs the solver with a canal level per canal class, records the water the canals exchange with the peat, and scores the result against field points next to two simple predictions (section 4). The established outputs are unchanged (74 of 74 files identical, section 4.4).
 - **First test, Pulau Tebing Tinggi, 2015 survey.** All six configurations fail the gate (Spearman 0.01 to 0.05). The model is 48 to 71 cm too shallow (section 6). The survey itself cannot test the spatial pattern, however. Its depths do not follow distance to canal (Spearman 0.00) or peat thickness (0.02). Between field teams working the same 2 km block, the team accounts for 76% of the variance, and visit timing does not explain this (section 6.5).
 - **Second test, Sugihan-Lumpur, 51 stations, 2026.** The timing is right (median per-station r 0.87) and the amplitude is not: the model drains to 122 cm (KHG mean, end of September) while the stations hold about 42 cm. Its canals take 58 mm out of the peat in the dry season, where the stations imply 290 mm supplied. The water table of this managed KHG is set by canal operation, which the model does not yet represent (section 6.4, 7).
-- **Three KHG with stations (section 6.6).** At Sugihan-Lumpur, Kampar-Gaung and Mendahara-Batanghari the stations in managed land stay almost flat through the dry season (median drawdown 1 to 12 cm), while the model drains by 19 cm or more in every configuration. A measured, lower Sy (Ismail et al. 2021) makes it worse. Community stations at Mendahara-Batanghari drop 63 cm. The missing term is water supplied to managed land.
-- **Managed land held at a target (section 6.7).** Holding plantation licences at 0.4 m gives a water-management supply close to what the stations imply at Sugihan-Lumpur (233–324 mm against 290 mm) and within a factor of 2 at Mendahara-Batanghari. Community land outside licences is now the weak part: about 95 cm in the model against 29 cm observed at 6 stations.
+- **Three KHG with stations (section 6.6).** At Sugihan-Lumpur, Kampar-Gaung and Mendahara-Batanghari the stations in managed land stay almost flat through the dry season (median drawdown 1 to 12 cm), while the model drains by 19 cm or more in every configuration. A measured, lower Sy (Ismail et al. 2021) makes it worse. Community stations at Mendahara-Batanghari drop 63 cm (raw record; 11 cm after screening, section 6.13). The missing term is water supplied to managed land.
+- **Managed land held at a target (section 6.7).** Holding plantation licences at 0.4 m gives a water-management supply close to what the stations imply at Sugihan-Lumpur (233–324 mm against 290 mm) and within a factor of 2 at Mendahara-Batanghari. Community land outside licences is now the weak part: about 95 cm in the model against 29 cm observed at 6 stations (raw record; 44 cm after screening, section 6.13).
 - **First intervention scenarios (section 6.9).** Blocks from repeat-pump cut the dry-season days deeper than 40 cm by 26 days within 150 m of a block and by 9 days at 150–350 m, with no effect beyond 1 km, which matches field reports. Pumping on the sub-KHG repeat-pump marks for water takes about 50 million m³ in June to September at Mendahara-Batanghari and reduces the sub-KHG still needing rewetting from 12 to 9 of 29.
+- **What the target and canal levels rest on (sections 6.10, 6.11).** Concession station readings pile up just inside the 40 cm limit, so they cannot measure the managed water table; published plantation water tables are 0.6–0.85 m. Across targets of 0.4 to 0.8 m the open land changes by at most 1 cm, while the supply falls by a factor of 2 to 5. Canal levels measured in the Pulau Padang LiDAR (primary 0.8 m, secondary and tertiary about 0.3 m) are far shallower than the assumed 1.2 m and change the open land much more. No fixed canal level gives both the level and the dry-season drop of community land.
+- **Canals inside cells and a canal water balance (section 6.12, D18, D19).** Canal cells outside managed land now stay free and exchange water with the canal in them; a canal store per sub-KHG lets the canal level fall through the dry season. Against a 5 m grid the leak term removes the wet bias of fixed cells (up to 19 cm at 200 m) to within 0.7 cm. On the three KHG, compared on the same cells, neither changes the open land by more than 5 days; the canal level itself (1.2 m against the LiDAR levels) moves it by 12 to 20 days. The store's canals sit a season median 0.17 to 0.55 m below the land, and mass closes to within 0.01%.
+- **Outliers in the station record (section 6.13).** SiTMAT's QC passes restarts after gaps, settling days and stuck loggers: a screening rule leaves out 17% of concession and 23% of community readings nationally. At Mendahara-Batanghari the 63 cm dry-season fall of the community stations rests on a 3-day July fragment and a restart week at about 70 cm above the ground. On the screened record the stations sit at 44 cm and fall 11 cm (19 August to 30 September). On the 100 m grid the LiDAR canal levels match that level and fall (47 and 6 cm) and the canal store overshoots (56–63 and 24 cm); at 200 m the 4 comparable stations fall 2 cm against 21 cm simulated. Correlations have not been recomputed on the screened record.
 - **Open decisions.** How to represent managed canal levels or supply; which evidence the gate rests on; whether to address the surface specific yield and the forcing (section 8).
 
 ## Questions and answers
@@ -155,6 +158,13 @@ From the review, section 3. Forcing (CHIRPS, MOD16, WaPOR) is settled. For a gri
 | D15 | 2026-10-28 | Inputs from `_data` with fallbacks, applied cell by cell where possible. Each run writes `inputs.csv` (input, source, share of the KHG): peat depth from the KHG's raster, then the BBSDLP 1:50k depth classes (class midpoints; 8 m assumed for > 700 cm), then the KHG median; managed land from the national licence layer; target from regulation or stations | Not every KHG has every input; national layers cover all 865 KHG | one source per input, failing where it is missing | project owner (fallbacks requested), proposal in this work |
 | D16 | 2026-10-28 | Peat base: no ET is taken from a cell whose water table is below the peat. Existing BRGM/PPEG canal blocks (3,057 realised at Kampar-Gaung) are left for the block step, with repeat-pump's directed canal network, instead of a radius rule now | With a measured low Sy at depth, unlimited ET took the water table below the peat (section 6.6). A radius rule for blocks would add a free parameter | blocks by radius now | proposal in this work |
 | D17 | 2026-10-28 | Interventions come from repeat-pump. A block scenario fixes the canal cells of each block's reach (`sekat_reach`: the canal stretch a block holds water in, with the water depth below the land) at that level; where a managed or block level meet, the higher water level is kept. A pumping scenario holds the land repeat-pump marks for water supply (`interventions`, sub-KHG whose intervention includes water) at a target water table, like managed land; the water this takes is the pumping need. `scripts/compare_scenarios.py` compares scenarios with a baseline per sub-KHG | Both modules then use one canal network and one set of block positions; reach depths are relative to the land, so they apply on any DTM | a canal network inside repeat-neraca (Urzainki et al. 2023); pumps as point sources | project owner (blocks and pumps agreed), proposal in this work |
+| D18 | 2026-10-29 | Canals narrower than a cell (`--canal-cells leak`): canal cells outside managed land stay free and exchange `q = 12 (L/dx) max(1, L/dx) T(z) (h_canal − h)` with the canal in them, L the mapped canal length in the cell. The factor 12 follows from the Hooghoudt parabola: under uniform recharge the mean head of a strip drained by a canal through it lies `q s²/(12 T)` above the canal, s the strip width, so a canal crossing a cell has a conductance of 12 T; a cell holding more canal than its width drains strips of width dx²/L. T is taken at the start of each step. Canals in managed land (held at the target) and block reaches stay fixed cells. Stations on the freed cells are scored, so the station set of a gate depends on the canal mode | Fixed whole cells (`all_touched`) covered 37–40% of the grid at 200 m and left most stations unscored. Against a 5 m grid that resolves the canal, fixed cells made the land 2–19 cm too wet; the leak with factor 12 was within 0.7 cm, the closest of the factors tried (section 6.12) | a river conductance with a bed resistance (unmeasured); the factor fitted to stations | project owner (asked for it), proposal in this work |
+| D19 | 2026-10-29 | Canal water balance (`--canal-store`, implies D18): one canal store per sub-KHG (one for the whole KHG without units), its level y relative to the class levels of `--drawdown`, which act as the outlet sill. Each day `A Δy = Σ q_exchange + (P − E) A − A max(0, y)/τ`, with A the canal water surface (length times width per class), solved implicitly and iterated with the groundwater step (secant per store). A canal whose level falls to its bed is dry and only drains its cell. Widths 8/3/1 m and beds 3/1.5/1 m below the land for primary/secondary/tertiary, from Hooijer et al. 2012, Evans et al. 2019, Vernimmen et al. 2020, Urzainki et al. 2023 and Ismail et al. 2021; ET of the forcing on the water surface; τ = 1 day, with 0.1 day added as a band after Kampar-Gaung fell below the canal-depth range (section 6.12) | No fixed canal level gave the community stations both their level and their dry-season fall (section 6.11). No canal level series exists for these KHG, so the stage has to come from a balance | the diffusive-wave canal network of Urzainki et al. 2023 (canal slopes, roughness and outlet stages all unmeasured); a seasonal level from data (none in hand) | project owner, on the proposal in this work |
+| D20 | 2026-10-29 | Station screening (`fieldcheck.screen`): split a record at gaps of 7 days or more; leave out pieces shorter than 14 days, the first 7 days of each piece and runs of 7 or more identical values; count day-to-day jumps over 30 cm. Thresholds chosen after looking at the Mendahara-Batanghari records. Used for reporting next to the raw record; the gates still score the raw record | SiTMAT's QC passes restarts at shifted levels and stuck loggers; at Mendahara-Batanghari the community stations' dry-season fall rested on them (section 6.13) | thresholds on the level itself (flooding is possible in low land); dropping whole stations | project owner (asked to acknowledge outliers), rule written in this work before scoring with it |
+| D21 | 2026-10-29 | Recommended set-up: canals inside cells (D18) at the LiDAR levels (0.8/0.3/0.3 m), no canal store; managed land held at 0.4 m (band 0.4–0.8 m for supply); gates score the screened station record (`--screen-stations`). Defaults of the command are unchanged, so earlier runs reproduce byte for byte | The raw record carries logger restarts and stuck values; on the screened record and the 100 m grid this set-up matches the community stations, while the canal store overshoots and rests on an unmeasured outlet constant (section 6.12) | the canal store as default; scoring the raw record | project owner (asked to decide), proposal in this work |
+| D22 | 2026-10-30 | Optional cap on the water management supply (`--supply-cap <mm>`, `deficit` or `climate`, the last from the KHG's own rain and ET, section 6.16): each managed cell is topped up to its target only until it has received the cap over the window (the last top-up exact); after that the cell falls with the water table. Off by default. With `deficit` the cap and its window come from the station-based deficit (`runs/deficit/neraca_khg.csv`) and the gate's supply check is not testable, since it would pass by construction | A level held at exactly the target everywhere, with no cell deeper, does not look like water and hides the spread the concession stations show (section 6.15); a supply that is limited lets the level fall where the water runs out | the hard target as the only option (kept as the default); a daily pump rate (not measured) | project owner (asked to decide whether the capped run becomes the recommended set-up), proposal in this work |
+| D23 | 2026-10-30 | Existing canal blocks are in the model by default (`--existing-blocks brgm`): the BRGM/PPEG `Sekat Kanal` points of `00_inputs/blocks.gpkg`; canal cells within `--block-radius` (200 m) of a block are held at `--block-level` (0.4 m below the land), or at the class level where that is shallower. `--existing-blocks none` reproduces earlier runs byte for byte; run names get `_eb` | A canal behind a block keeps its water; the layer is the only record of existing blocks and was lying unused (D16 deferred it to a directed canal network). The layer has points only, no crest level, no flow direction, record year mostly 2018: the 0.4 m level and the 200 m radius are assumptions (the PP 57/2016 limit; field reports of rewetting 100 to 400 m along the canal) | a directed canal network with block reaches (needs the canal topology, which is incomplete and has dangles); leaving blocks out | project owner chose it as the default regardless of the test result; to be revisited if the level or radius is measured |
+| D24 | 2026-10-30 | Canal levels of the recommended set-up (D21) differ by class: primary 0.80 m, secondary 0.32 m, tertiary 0.24 m below the land (were 0.8 / 0.3 / 0.3) | These are the median depths of the mapped canal line on the 2 m Pulau Padang LiDAR DTM (section 6.10, `docs/reports/lidar_canal_levels_14.10.01.md`: secondary 0.32 m, tertiary 0.24 m, interquartile ranges 0.13 to 0.75 and 0.08 to 0.65 m). The earlier 0.3 for both was a rounding of the two medians. Larger canals are deeper (Ismail et al. 2021: drains 1 to 10 m wide, up to 5 m deep). Still shallow bounds: the secondary and tertiary lines are partly below the DTM pixel and LiDAR returns little from water | 0.3 for both; a literature value (no source measures canal level by class) | project owner, who asked for the classes to differ |
 Data in `_data` considered for the model, with what was used:
 
 | Layer | Coverage | Used for |
@@ -174,13 +184,13 @@ Data in `_data` considered for the model, with what was used:
 
 ### 4.1 Package layout and modules
 
-`repeat-neraca`, version 0.2.0. The new and moved modules:
+`repeat-neraca`, version 0.3.0 (0.2.0 before D18 and D19). The new and moved modules:
 
 | Module | Content |
 |---|---|
 | `groundwater/solver.py`, `groundwater/data/` | 2D Boussinesq solver and peat tables; shared with repeat-pump (D3) |
 | `groundwater/grid.py` | a KHG on a metric grid: boundary, DTM, peat depth, canals by class |
-| `groundwater/simulate.py` | daily run with a fixed level per canal class; daily water flux from canal and edge cells into the peat, `Σ T_face (h_fixed − h_free)` |
+| `groundwater/simulate.py` | daily run with a fixed level per canal class; daily water flux from canal and edge cells into the peat, `Σ T_face (h_fixed − h_free)`; from 0.3.0 canals inside free cells (`Boundary.leak_length`, D18) and the canal store (`CanalStore`, D19) |
 | `groundwater/fieldobs.py` | field water-table points as one generic table per KHG (`00_inputs/field_wtd.csv`), with a reader per survey format |
 | `groundwater/fieldcheck.py` | scores, the two simple predictions, the gate, breakdowns, single-day sensitivity |
 | `model.py` | the command `repeat-neraca-model --khg <code> --dem <variant>` |
@@ -206,6 +216,8 @@ repeat-pump's copy of the solver was adopted because it loads the peat table thr
 A tracked `build/lib` folder was found to leak a stale copy of the old solver into archive installs, and was removed.
 
 ### 4.4 Checks that nothing established changed
+
+0.3.0 (D18, D19): `solve()` takes two optional arguments, `leak_factor` and `leak_head`, and a choice of linear solver (`linear="direct"` by default; the leak runs use conjugate gradients, which matched the direct solve to 1e-10 m on the Kampar-Gaung grid at 200 m and took 3.1 s against 50 s for five days). With the defaults no existing line of the solver changes, so repeat-pump's calls are unaffected. A saved band run (Kampar-Gaung, 200 m, target 0.4 m) rerun with the new code gave 15 of 16 files byte-identical; `model_report.md` differs only in the run time. New run options add a tag to the run name (`_lk`, `_cs<τ>`) and keys to `run_config.json` only when they are set.
 
 - A baseline of 74 output files was written before any change: climatic balance, map layers, tier 1, tier 1 with the tropical table and tier 2 at Sugihan-Lumpur, all from existing inputs. After the solver move and after the tidy, all 74 files were identical, registry hash included.
 - Tests: repeat-neraca 54 passed, 2 skipped; repeat-pump 351 passed, 1 skipped (7 solver tests moved to repeat-neraca).
@@ -423,6 +435,211 @@ The effect of the blocks is local:
 
 This reach matches the literature: under 5 cm of lateral effect by about 300 m (Kurnianto et al. 2026) and rewetting about 100–400 m from blocks in Tebing Tinggi field reports (section 2.2). The 160 reaches touch a small share of this densely canalled KHG, so the KHG-wide average moves little. Pumping on the sub-KHG repeat-pump marks for water holds 29% of the KHG at 0.4 m. It takes about 50 million m³ more in June to September and brings the sub-KHG still needing rewetting from 12 to 9. The area-weighted figures come from each run's `model_units.csv`; the order of the scenarios, not the absolute water table, is the result to use, given the open problems of section 7.
 
+### 6.10 What the managed target and the canal levels rest on (checked 2026-10-29)
+
+**Concession stations follow the compliance limit** (`docs/reports/concession_levels.md`, `scripts/check_concession_levels.py`). The 131,987 unflagged daily readings of 1,157 SiTMAT concession stations (April to October 2026) pile up just inside 40 cm: 2.5 times as many readings at −40 cm as at −41 cm, while the 3,057 community readings show no such step. 53% of concession stations have a median between −40 and −30 cm, 18% deeper than −40 cm. Published plantation water tables are deeper: Acacia 70 ± 17 cm (Evans et al. 2019), 0.70–0.73 m (Hooijer et al. 2012), oil palm canal water about −0.6 m and Acacia about −0.85 m at 5–9 m elevation in 2018–2025 (Vernimmen and Hooijer 2026); RSPO's design target for oil palm is 50–70 cm in collection drains (`research_notes/canal_levels_evidence.md`). Whether operators hold water at the limit or report it there, the concession stations are not independent evidence of the managed water table. A target taken from them (`stations-loo`, 0.43–0.44 m at Sugihan-Lumpur) is the 0.4 m compliance level again.
+
+This also limits the supply check of D14. The station-based deficit is the rain deficit minus Sy times the stations' drawdown (`deficit.py`); where the stations stay flat, it is close to the rain deficit, which is also what holding a target takes. The agreement at Sugihan-Lumpur (233–324 mm against 290 mm) therefore shows that the model is consistent with the stations, not that the stations measure the managed water table.
+
+**Canal levels in LiDAR** (`docs/reports/lidar_canal_levels_14.10.01.md`, `scripts/check_lidar_canal_levels.py`). Transects across the mapped canals of Pulau Padang on the 2 m LiDAR DTM (flown November 2016) find the lowest point within 10 m of the line in 35–46% of cases, against 7% by chance. At the line the DTM lies a median 0.80 m below the land at primary canals, 0.32 m at secondary and 0.24 m at tertiary (control 100 m away: 0.05–0.06 m). Over water the DTM interpolates from the banks, and tertiary drains (about 1 m wide, Ismail et al. 2021) are below the pixel size, so the secondary and tertiary values are shallow bounds; Vernimmen et al. 2020 measure canal water depth only for canals wider than 3 m. The 20–25 m LiDAR of the other KHG cannot resolve canals. The 1.2 m of every class in the model is the unvalidated offset w of Urzainki et al. 2020, closest to unmanaged dry-season canals (below −1.5 m in the ex-Mega Rice Project, Vernimmen and Hooijer 2026); 0.6 m lies in the published managed range.
+
+**Canal stage, not canal exchange.** Mapped canals are 290–450 m apart in the plantation licences of Sugihan-Lumpur, Mendahara-Batanghari and Kampar-Gaung and 420–915 m outside them (canal length over licence area), so a 100 m grid resolves them. Field drains, 75–200 m apart in plantations (Evans et al. 2019; Hooijer et al. 2024), are not mapped. Hooijer et al. 2024 find the peat water table 0.05 m below the canal water in a plantation landscape and explain it by such drains. Where drains are that dense, the water table follows the canal stage, and the stage is the input that matters.
+
+### 6.11 A band of managed targets, and canal levels from LiDAR (runs of 2026-10-29)
+
+`docs/reports/managed_target_band.md` (`scripts/summarise_target_band.py`). Set-up as section 6.7 (tropical-large, peat base, BBSDLP depth fallback, LiDAR DTM, 2025-11-01 to 2026-10-01), with canals outside licences at the Pulau Padang LiDAR levels (primary 0.8 m, secondary and tertiary 0.3 m, section 6.10) and managed land held at 0.4, 0.6 or 0.8 m. Season June to September 2026, area-weighted over the sub-KHG.
+
+| KHG | canals outside licences p/s/t (m) | target (m) | open land: mean depth (cm) | open land: days deeper than 40 cm (of 122) | supply to managed land (mm) | station-based deficit (mm) |
+|---|---|---|---|---|---|---|
+| Sugihan-Lumpur | 1.2/1.2/1.2 | 0.4 | 49 | 68 | 244 | 290 |
+| Sugihan-Lumpur | 0.8/0.3/0.3 | 0.4 / 0.6 / 0.8 | 37 / 38 / 38 | 56 / 56 / 56 | 243 / 149 / 103 | 290 |
+| Kampar-Gaung | 1.2/1.2/1.2 | 0.4 | 23 | 24 | 42 | 7 |
+| Kampar-Gaung | 0.8/0.3/0.3 | 0.4 / 0.6 / 0.8 | 15 / 15 / 15 | 5 / 5 / 5 | 40 / 16 / 8 | 7 |
+| Mendahara-Batanghari | 1.2/1.2/1.2 | 0.4 | 45 | 61 | 194 | 119 |
+| Mendahara-Batanghari | 0.6/0.6/0.6 | 0.4 | 34 | 51 | 181 | 119 |
+| Mendahara-Batanghari | 0.8/0.3/0.3 | 0.4 / 0.6 / 0.8 | 30 / 30 / 30 | 41 / 41 / 41 | 172 / 124 / 92 | 119 |
+
+Community stations at Mendahara-Batanghari (6, off canal cells), level and dry-season drawdown, observed 29 and 63 cm:
+
+| canals outside licences p/s/t (m) | level simulated (cm) | drawdown simulated (cm) |
+|---|---|---|
+| 1.2/1.2/1.2 | 95 | 38 |
+| 0.6/0.6/0.6 | 66 | 23 |
+| 0.8/0.3/0.3 | 44–45 | 12–13 |
+
+- **The managed target sets the supply, not the open land.** From 0.4 to 0.8 m the open land changes by at most 1 cm and 0 days at all three KHG; the supply falls by a factor of 2 to 5. Results on open land, and so the block effects judged there, do not rest on the 0.4 m assumption; supply and pumping volumes do and are reported as a band. Against the station-based deficit the supply check passes at every target at Kampar-Gaung and Mendahara-Batanghari and fails at 0.8 m at Sugihan-Lumpur (103 against 290 mm); section 6.10 explains why this check carries little weight.
+- **The canal level outside licences sets the open land.** The LiDAR levels cut the days deeper than 40 cm from 68 to 56 (Sugihan-Lumpur), 24 to 5 (Kampar-Gaung) and 61 to 41 (Mendahara-Batanghari).
+- **A fixed canal level cannot give both the level and the swing of community land.** Shallower canals bring the community level closer (95 to 44 cm, observed 29) and flatten the dry-season drawdown (38 to 12 cm, observed 63). The stations need canals that are high in the wet season and fall in the dry season, which a fixed level per class cannot represent. This is the case for a canal stage that varies in time (section 8, item 4), from data or from a canal water balance. *Revised in section 6.13:* the observed 29 cm and 63 cm rest on outliers in the station record; on the screened record and the 100 m grid, the LiDAR canal levels match the community stations' level and fall (sections 6.12, 6.13).
+- **Canal cells take a large share of the grid.** Canals are rasterised as whole fixed cells (`all_touched`): 40% of Sugihan-Lumpur at 200 m, and 12 of 13 concession stations at Mendahara-Batanghari fall on a canal cell and are left out. A canal narrower than a cell holds the whole cell at its level. D18 (section 6.12) frees the canal cells outside managed land; canals in managed land stay fixed at the target, so the 12 concession stations are still left out.
+- **Block scenarios** need a baseline deeper than the reach levels of repeat-pump (median 0.59 m at Mendahara-Batanghari, section 6.9); on canals at 0.3 m most reaches would raise nothing. The 1.0 m baseline of D17 stays for them.
+
+### 6.12 Canals inside cells and a canal water balance (D18, D19; runs of 2026-10-29)
+
+`docs/reports/canal_modes.md` (`scripts/summarise_target_band.py`) and `docs/reports/subcell_canal_check.md` (`scripts/check_subcell_canal.py`). Set-up as section 6.11 with the target at 0.4 m and canals outside licences at the LiDAR levels (primary 0.8 m, secondary and tertiary 0.3 m), which the store runs use as the outlet sill. Season June to September 2026.
+
+**Numerical check of the leak term.** Parallel canals in flat peat, 90 days at 4 mm/day from saturation, against a 5 m grid that resolves a 10 m canal:
+
+| canal spacing (m) | grid (m) | bias of the land mean, fixed cells (cm) | bias, leak factor 12 (cm) | cell RMSE, fixed / leak (cm) |
+|---|---|---|---|---|
+| 300 | 100 | +4.7 | −0.2 | 6.4 / 1.3 |
+| 300 | 200 | +18.5 | −0.6 | 20.1 / 3.8 |
+| 500 | 100 | +1.6 | +0.7 | 3.8 / 1.5 |
+| 500 | 200 | +8.1 | −0.4 | 11.1 / 6.5 |
+
+Factors 4, 8 and 24 were also run; 12 had the lowest RMSE in three of the four cases and the smallest bias in all four (at 500 m and 200 m, 24 had an RMSE of 5.1 cm with a +2.9 cm bias).
+
+**Open land, compared on the same cells** (the open cells of the fixed-cell run; leak and store runs also count canal cells as open land, which adds 26 to 83% to its area):
+
+| KHG, grid | days deeper than 40 cm: fixed / leak / store τ 1 d / store τ 0.1 d | canals at 1.2 m, fixed | canal cells fixed: fixed / leak runs | canal depth below the land, season median, τ 1 / 0.1 d (m) |
+|---|---|---|---|---|
+| Sugihan-Lumpur, 200 m | 56 / 54 / 51 / 55 | 68 | 40% / 30% | 0.42 / 0.55 |
+| Kampar-Gaung, 200 m | 5 / 5 / 3 / 5 | 24 | 37% / 25% | 0.17 / 0.30 |
+| Mendahara-Batanghari, 100 m | 41 / 41 / 38 / 43 | 61 | 23% / 7% | 0.41 / 0.48 |
+
+**Community stations at Mendahara-Batanghari** (the 6 stations off canal cells in the fixed-cell run, in every run; screened record: section 6.13):
+
+| canals outside licences | level, raw record: obs / sim (cm) | drawdown, raw: obs / sim (cm) | level, screened: obs / sim (cm) | drawdown, screened: obs / sim (cm) |
+|---|---|---|---|---|
+| 1.2 m, fixed | 29 / 95 | 63 / 38 | 44 / 101 | 11 / 25 |
+| 0.6 m, fixed | 29 / 66 | 63 / 23 | 44 / 70 | 11 / 13 |
+| LiDAR levels, fixed | 29 / 44 | 63 / 12 | 44 / 47 | 11 / 6 |
+| LiDAR levels, leak (D18) | 29 / 46 | 63 / 15 | 44 / 48 | 11 / 9 |
+| LiDAR levels, store τ 1 d (D19) | 29 / 52 | 63 / 35 | 44 / 56 | 11 / 24 |
+| LiDAR levels, store τ 0.1 d | 29 / 58 | 63 / 35 | 44 / 63 | 11 / 24 |
+
+- **Canals inside cells change the open land little.** On the same cells the leak changes days deeper than 40 cm by 0 to 2. Its effect is on what the model represents: canal cells are no longer held at the canal level (fixed canal cells fall from 23% to 7% of Mendahara-Batanghari at 100 m), and the stations on them are scored.
+- **The resolution check did not separate the two modes on a real KHG.** At Mendahara-Batanghari, days deeper than 40 cm were 41 and 39 at 100 and 200 m with fixed cells, 41 and 38 with the leak (same cells). The comparison is confounded: managed land held at the target is 302 km² at 100 m and 195 km² at 200 m. The community drawdown of the leak runs moves with the grid (raw record, 9 stations: 8 cm at 100 m, 18 cm at 200 m).
+- **The canal store makes the canals fall.** At Mendahara-Batanghari and Sugihan-Lumpur the canals sit a season median 0.41 to 0.55 m below the land, inside the gate range of 0.2–2.5 m; at Kampar-Gaung 0.17 m with τ = 1 day (fails the range) and 0.30 m with τ = 0.1 day (passes). τ = 0.1 day was added after the Kampar-Gaung run at τ = 1 day failed the range; it is reported as a band and no value is chosen. The coupling closes mass to within 0.006% of the canal exchange. The range is wide, so passing it says little.
+- **On the raw record the store looked like progress; on the screened record it overshoots.** It triples the raw dry-season fall (12 to 35 cm) and deepens the level (44 to 52–58 cm). The screened record shows the community land falling 11 cm from 19 August to 30 September; at 100 m the store gives 24 cm, the fixed LiDAR levels 6 cm and the leak 9 cm. At 200 m the 4 comparable stations fall 2 cm on the screened record against 21 cm (fixed) and 22 cm (leak). The station correlations were not recomputed on the screened record.
+- **Gate results.** The community check (level and drawdown within 20 cm, `fieldcheck.COMMUNITY_TOL_CM`, raw record) fails in every run at 100 m. At 200 m the leak run passes it on the 9 stations its gate scores, but the 3 added stations sit on canal cells and barely fall; on the 4 stations of the fixed-cell run it fails (49/33 against 29/63). With D18 the set of scored stations depends on the canal mode; the gate is unchanged and reports its own set. The median station correlation is 0.32–0.35 in the leak and store runs against 0.38 with fixed cells, below 0.5 in all.
+- **Not yet done:** canal cells in managed land stay fixed at the target (25–30% of the cells at Kampar-Gaung and Sugihan-Lumpur); the sill of the store is the Pulau Padang LiDAR level applied to other KHG; τ and the canal widths and beds are a priori values; block scenarios have not been run with D18 or D19.
+
+### 6.13 Outliers in the station record (checked 2026-10-29)
+
+`docs/reports/station_outliers.md` (`scripts/check_station_outliers.py`). SiTMAT's QC flags readings outside −500 to 100 cm and single spikes over 60 cm. It passes a logger that restarts after a gap at a shifted level, a logger stuck at one value, and steps between days. A screening rule was written in `fieldcheck.screen` before its effect on any score was computed; its thresholds were chosen after looking at the Mendahara-Batanghari restart week and the stuck station: records are split at gaps of 7 days or more; pieces shorter than 14 days are left out, as are the first 7 days of each piece (settling) and runs of 7 or more identical values; day-to-day jumps over 30 cm are counted.
+
+| record | kind | stations | readings | left out | stations with a gap of 7+ days | jumps > 30 cm |
+|---|---|---|---|---|---|---|
+| national, April to October 2026 | concession | 1,159 | 132,109 | 22,656 (17%), of which 11,380 in stuck runs | 465 (40%) | 518 |
+| national | community | 73 | 3,167 | 732 (23%) | 38 (52%) | 62 |
+| Sugihan-Lumpur | concession | 51 | 10,041 | 2,231 (22%), of which 1,874 in stuck runs | 0 | 6 |
+| Kampar-Gaung | concession | 86 | 12,144 | 1,357 (11%) | 68 (79%) | 35 |
+| Mendahara-Batanghari | concession | 13 | 1,906 | 307 (16%) | 9 (69%) | 1 |
+| Mendahara-Batanghari | community | 9 | 603 | 105 (17%) | 9 (100%) | 21 |
+
+- **The community result of sections 6.6 to 6.11 rests on outliers.** All 9 community stations at Mendahara-Batanghari report 3 days from 21 July 2026, then nothing for about three weeks. They restart in the week of 11 August at levels up to 85 cm above the ground and move 60 to 100 cm within a week. The raw "level 29 cm, fall 63 cm" is the mean and the last-minus-first-week difference over such a record. One station holds exactly 0 for about two weeks. On the screened record the 6 stations off canal cells sit at 44 cm and fall 11 cm over 19 August to 30 September. Whether the land was flooded in early August cannot be told from these records.
+- **Stuck runs are common in concession records:** 9% of the national concession readings and 19% at Sugihan-Lumpur sit in runs of 7 or more identical daily values. Together with the pile-up at −40 cm (section 6.10) this weakens what concession stations can test.
+- Other users of the SiTMAT record are not screened yet: the station-based KHG deficit (`deficit.py`, through `repeat_common.tma`, which drops only SiTMAT's range and spike flags), and with it the reference of the D14 supply check; national stage 3; the repeat-sitmat dashboard.
+- The scores and gates in this report use the raw record. Whether the gate should score screened records is a decision (section 8, item 5); the comparison in section 6.12 shows both.
+
+### 6.14 Recommended set-up (D21, runs of 2026-10-29)
+
+Canals inside cells at the LiDAR levels, managed land at 0.4 m, stations screened. Season June to September 2026, area-weighted over the sub-KHG (`model_units.csv` of `tropical-large_p0.8_s0.3_t0.3_mt0.4_lk_scr_e0.3_<res>m_pb_dbbsdlp`). Map: `re-peat/reports/project_report/figures/model_days_maps_final.png` (`model_days_maps_final` in `re-peat/tools/project_report_figures.py`).
+
+| KHG | grid | open land: days deeper than 40 cm | open land: mean depth (cm) | supply to managed land (mm) | gate |
+|---|---|---|---|---|---|
+| Sugihan-Lumpur | 200 m | 49 | 40 | 243 | pass (supply only; no station outside managed land) |
+| Kampar-Gaung | 200 m | 6 | 18 | 40 | pass (supply only) |
+| Mendahara-Batanghari | 100 m | 40 | 32 | 173 | fail: median station r 0.30 (check 0.5) and Spearman below the distance prediction; passes Spearman ≥ 0.3, RMSE below the constant, community level and drawdown (8 stations: 39/44 cm level, 6/3 cm drawdown) and supply |
+
+The gate is now testable on screened records and fails only on dynamics and on beating distance to canal at Mendahara-Batanghari. The maps are indicative: the model is in development.
+
+### 6.15 ET falling with depth and the drained-peat set against the D21 set-up (runs of 2026-10-30)
+
+Mendahara-Batanghari, LiDAR, 100 m, 2025-11-01 to 2026-10-01, D21 set-up, stations screened. One change per run; run folders `imp_a_baseline_screened`, `imp_b_etstress`, `imp_c_ismail` under `03_neraca/lidar/runs/model/`. Gates unchanged.
+
+| run | change | Spearman (9 stations outside held land) | bias (cm) | RMSE (cm) | median station r | community level obs / sim (cm) | supply (mm) | gate |
+|---|---|---|---|---|---|---|---|---|
+| imp_a | none (reproduces section 6.14: 173 mm, r 0.30) | 0.45 | 5 | 16 | 0.30 | 39 / 44 | 173 | fail |
+| imp_b | `--et-stress drained` | 0.45 | 5 | 16 | 0.30 | 39 / 44 | 173 | fail |
+| imp_c | `drained-ismail-large` (Sy of drained peat) | 0.70 | 30 | 51 | 0.29 | 39 / 52 | 231 | fail |
+
+- ET stress gives the same station scores as the baseline. The water table stays shallow at these stations (mean level 28 to 44 cm), above the depth where ET is cut, as at Sugihan-Lumpur (section 6.6).
+- The Ismail set ranks the stations better (Spearman 0.70, above the distance prediction) and puts the levels 30 cm too deep on average (RMSE 51 cm against 19 cm for the constant), and its community drawdown is 0 cm against 6 cm observed. It also raises the supply to managed land to 231 mm against the station deficit of 119 mm (within the factor 2).
+- **Known limitation, managed land.** Concession levels are imposed in the model (held at 0.4 m) because the station readings follow the PP 57/2016 limit. On the screened records (`scripts/check_concession_levels.py --screen`, `docs/reports/concession_levels_screened.md`; 109,343 readings from 1,054 concession stations, 2026-04-08 to 2026-10-22) the readings peak at -39 to -40 cm and fall by half at -41 cm: 2.0 times as many at -40 as at -41 cm at concession stations, against 1.4 at the 47 community stations (2.5 and 1.5 on the unscreened record). 56% of concession station medians lie between -40 and -30 cm. The community ratio is above 1, so the contrast is a difference in degree. Readings at the limit do not show whether operators hold the water there or report it there. The model therefore takes managed land as a scenario band (0.4, 0.6, 0.8 m) and does not predict its level.
+- **Water removed as ponding (surface runoff), diagnostic.** The solver drops head above the land each step (`remove_ponding`). `--log-ponding` writes `model_ponded.csv` (mm over the free cells, share of cells that ponded; estimated as head above the land times Sy at the surface). Run `imp_d_ponding`, the baseline with the flag; its other outputs are byte-identical to `imp_a_baseline_screened`. Over the year the model removes 498 mm against 2,222 mm of rain (22%). By month (mm): November 103, December 160, January 68, February 0.3, March 4, April 36, May 93, June 34, July to September about 0. In the wet months it is 30 to 40% of the rain, with up to 60% of the cells ponded on a day. In the dry season it is nil, so surface runoff does not set the dry-season level here. It would matter for how full the canals are at the start of the dry season, and only in a model with a canal store; the store (D19) already overshoots and its outlet constant is unmeasured, so routing the runoff to canals was not added.
+- **Stations on canal cells as canal levels: not possible with these records.** Read from `station_scores.csv` of the D21 runs. The stations flagged `on_fixed_cell` (31 at Kampar-Gaung, 18 at Sugihan-Lumpur, 4 at Mendahara-Batanghari) sit in managed land and are held at 0.4 m in the model; their median distance to a canal is 96 to 123 m, so they are not in canal water. Only 11 stations lie within 30 m of a canal (Mendahara-Batanghari 4, Kampar-Gaung 5, Sugihan-Lumpur 2), and 10 of them are concession stations. Eight of the ten concession stations read 38 to 45 cm, the compliance pile-up above, so a canal level cannot be separated from it; the other two read 30 and 63 cm (Kampar-Gaung), and the one community station reads 13 cm. The class levels (0.8 / 0.3 / 0.3 m) stay as measured at Pulau Padang only.
+- **Canal level band** (Mendahara-Batanghari, LiDAR, 100 m, D21 set-up; runs `band_canal_shallow`, `imp_a_baseline_screened`, `band_canal_deep`; `scripts/summarise_canal_band.py`, `docs/reports/canal_band_15.05-07-10.01.md`). The three classes of the national existing-canal layer (primary, secondary, tertiary) are shifted together.
+
+  | canal level below the land, primary / secondary and tertiary (m) | open land mean depth (cm) | days deeper than 40 cm | supply to managed land (mm) | Spearman (9 stations) | bias (cm) | RMSE (cm), constant 18.6 |
+  |---|---|---|---|---|---|---|
+  | 0.5 / 0.15 | 24 | 29 | 167 | 0.77 | -6 | 16.3 |
+  | 0.8 / 0.3 | 32 | 40 | 173 | 0.45 | 5 | 16.0 |
+  | 1.2 / 0.6 | 43 | 64 | 181 | 0.02 | 28 | 37.3 |
+
+  The unmeasured canal level moves the open land by about 10 cm per step; the range per sub-KHG is 19 cm at the median and 44 cm at most. The supply to managed land barely changes (167 to 181 mm), since managed land is held. The stations rank best at the shallow setting and worst at the deep one, which fails the RMSE check against a constant. Only 9 stations lie outside held land (8 community, 1 concession), and the levels were not fitted to them, so this places the canal levels between the shallow and middle settings as the plausible range and does not fix a value. The canal level is the largest single unknown for open land. On the gate, the shallow setting passes five of six checks (only the median station r, 0.33 against 0.5, fails; the middle setting also fails the Spearman against the distance prediction), and the deep setting fails five.
+- **One class at a time** (same site and set-up, others at 0.8 / 0.3 / 0.3 m; `docs/reports/canal_class_band_15.05-07-10.01.md`; runs `cls_*`).
+
+  | class shifted | level (m) | open land mean depth (cm) | days deeper than 40 cm | Spearman (9 stations) | RMSE (cm), constant 18.6 |
+  |---|---|---|---|---|---|
+  | primary | 0.5 / 1.2 | 29 / 34 | 38 / 41 | 0.40 / 0.45 | 16.7 / 15.7 |
+  | secondary | 0.15 / 0.6 | 30 / 35 | 36 / 48 | 0.40 / 0.23 | 16.7 / 21.4 |
+  | tertiary | 0.15 / 0.6 | 29 / 37 | 34 / 55 | 0.60 / -0.22 | 13.9 / 32.2 |
+
+  The tertiary canals move the open land most (8 cm between 0.15 and 0.6 m, and 21 more days deeper than 40 cm), then secondary (5 cm) and primary (5 cm between 0.5 and 1.2 m). Tertiary canals are the longest class in the clip (2,922 km, against 1,954 km secondary and 1,688 km primary), so part of this is length. The stations favour a shallow tertiary level (Spearman 0.60, RMSE 13.9 cm, below the distance prediction's 14.5) and reject a deep one. The canal layer is incomplete, partly unconnected and partly mis-classed (`docs/reports/canal_topology_15.05-07-10.01.md`: 734 components, 453 of them a single segment; about a third of the line ends free; gaps most common in the tertiary class), so the class effects show how much the class assignment matters, not which canals set the water table. A canal coded tertiary that is a primary canal is counted in the tertiary row.
+- Neither ET stress nor the drained-peat set improves the gate. The D21 set-up stays the recommended one. Dynamics (median station r about 0.3) are unchanged by either change, so the limit is not in Sy or ET.
+
+### 6.16 Supply cap on managed land (D22, run of 2026-10-30)
+
+Success criteria, written before the run (Mendahara-Batanghari, LiDAR, 100 m, D21 set-up plus `--supply-cap deficit`, run `cap_deficit`, against `imp_a_baseline_screened`):
+1. The default path is unchanged: a run without the flag gives byte-identical `model_series.csv`, depth rasters, `model_units.csv` and `station_scores.csv` (run `chk_default`).
+2. The community stations outside managed land score no worse than `imp_a` (Spearman 0.45, bias 5 cm, RMSE 16 cm, median station r 0.30).
+3. Simulated season-mean level at the concession station cells is compared with their observed spread (observed 27 to 45 cm at Mendahara-Batanghari); it is a sanity bound, not a pass or fail gate, because the concession readings follow the compliance limit.
+4. The share of managed land deeper than 60 cm in the season mean is reported. A large share would show the model's drainage, not the managed water table.
+5. The supply check of the gate is not testable with this cap (taken from the deficit); report the supply and say so. (A first version of the code left the check in; the three capped runs were rerun on 2026-10-30 with it left out, `supply_check.cap_from_deficit` is true in their `station_scores.json`.)
+
+Result (Mendahara-Batanghari, LiDAR, 100 m; `cap_deficit`, cap 119 mm over 2026-06-01 to 2026-10-01, against `imp_a_baseline_screened`):
+
+| | imp_a (hard target) | cap_deficit |
+|---|---|---|
+| supply to managed land, 2026-06-01 to 2026-10-13 (mm) | 173 | 110 |
+| managed land season mean depth, 5th / 25th / 50th / 75th / 95th percentile (cm) | 19 / 27 / 33 / 40 / 40 | 19 / 28 / 36 / 40 / 40 |
+| managed land deeper than 60 cm, season mean | 0.0% | 0.2% |
+| managed land on 2026-10-01: median depth (cm), share at 40 cm or deeper, share deeper than 60 cm | 40, 94%, 0.0% | 43, 97%, 1.6% |
+| 9 stations outside managed land: Spearman, bias (cm), RMSE (cm) | 0.45, 5, 16 | 0.45, 5, 16 |
+| 12 concession station cells, simulated level (cm) | 11 to 40 | 11 to 40, same as imp_a to 1 cm |
+
+1. The default path is unchanged: `chk_default` (no flag) is byte-identical to `imp_a` in `model_series.csv`, both depth rasters, `model_units.csv` and `station_scores.csv`. Met.
+2. The community stations score the same. Met.
+3. The concession station cells do not move (observed 16 to 50 cm). Not changed by the cap.
+4. 0.2% of managed land is deeper than 60 cm in the season mean, 1.6% on the last day. The cap lets the level fall a little (median 43 cm on the last day against 40) and no more.
+5. The supply check is not testable with this cap; the supply is 110 mm against the deficit of 119 mm by construction.
+
+The cap releases the water table only a few centimetres. The likely reason (not checked cell by cell) is that the model's water table falls slowly once the supply stops, so a limited supply does not produce a deep concession water table within this season. The cap therefore does not remove the uniform level on the last day (97% of the managed cells at 40 cm or deeper). It stays an option (`--supply-cap`), not the recommended set-up (D21), and the decision on it is left to the project owner. The season mean map already shows managed land varying between 19 and 40 cm; the uniform 40 cm is a feature of the last day, when most cells are at the target.
+
+#### Supply from the KHG's own climate (`--supply-cap climate`, run of 2026-10-31)
+
+The cap value and window come from the KHG's rain and ET, so the supply check of the gate stays testable. `repeat_neraca/supply_rule.py`: the dry window is the 14 consecutive dekads (circular, 36 a year) with the largest mean ET minus rain over 2018-2025 (pixel-weighted mean of the sub-KHG balance files, CHIRPS and gap-filled MOD16); the cap is the ET minus rain of the run over that window, floored at 0. All three KHG give the window starting at dekad 16 (1 June). In an average year of the record the shortfall over that window is negative (rain above ET) at all three, so the cap is the amount of the run year: 2026 is a dry year, comparable to 2019. `scripts/supply_rule.py` writes the comparison (`docs/reports/supply_rule.md`). Runs with class canal levels, existing blocks, `--managed-target 0.4`, `--canal-cells leak`, screened stations (Mendahara-Batanghari 100 m, the others 200 m):
+
+| KHG | station deficit (mm) | climate cap (mm) | managed supply, uncapped (mm) | managed supply, capped (mm) | supply check |
+|---|---|---|---|---|---|
+| Mendahara-Batanghari | 119 | 202 | not run with these options | 159 | pass |
+| Kampar-Gaung | 7 | 11 | 40 | 8 | pass |
+| Sugihan-Lumpur | 290 | 377 | 243 | 235 | pass |
+
+The climate cap exceeds the station deficit by 1.3 to 1.7 times because the station figure also subtracts the storage the stations see released. It binds only at Kampar-Gaung. Station gates at Kampar-Gaung and Sugihan-Lumpur are not testable (stations flagged). At Mendahara-Batanghari the other gate checks are as in the deficit-cap run. The dry window needs the 2018 onwards balance files; a KHG without them stops with a message.
+
+### 6.17 Existing canal blocks as default (D23, runs of 2026-10-30)
+
+Mendahara-Batanghari, LiDAR, 100 m, D21 set-up; `chk_noblocks` (`--existing-blocks none`), `eb_default` (default), against `imp_a_baseline_screened`.
+
+- **Reproducibility.** `chk_noblocks` is byte-identical to `imp_a` in `model_series.csv`, both depth rasters, `model_units.csv` and `station_scores.csv`.
+- **Test with the stations, before the change.** The 422 existing blocks of the KHG (all `Sekat Kanal`, recorded 2018) do not explain the shallow readings beside canals: the four stations outside managed land within 60 m of a canal (13, 15, 21 and 35 cm) are 14 to 27 km from the nearest recorded block; the one station near a block (290 m) reads 44 cm. Over the 9 stations, observed depth has Spearman 0.53 with distance to the nearest canal and -0.15 with distance to the nearest block. The dry-canal and subsided-margin explanations of the canal research report stay open.
+- **Effect of the default.** 2,175 canal cells are held at the block level. Season mean depth changes by more than 0.05 cm in 2,966 of 201,226 cells (1.5%); median change among those 0.5 cm (5th to 95th percentile 0.1 to 9.4 cm), and the open-land mean depth per sub-KHG changes by at most 0.5 cm (KHG: 31.8 cm both). The 9 stations score the same (Spearman 0.45; bias 5.4 and 5.5 cm; RMSE 16.0 and 16.2 cm). The blocks mostly lift the primary canals (0.8 m to 0.4 m), since the secondary and tertiary class levels (0.3 m) are already shallower.
+- **Reading.** At Mendahara-Batanghari the recorded existing blocks have a small effect and do not close the gap with the stations. Their value is for KHG with many blocks near open land; Kampar-Gaung (2,884) and Sugihan-Lumpur (2,861) have far more and are not yet rerun.
+
+Existing blocks, the supply cap and the class canal levels together (Mendahara-Batanghari, LiDAR, 100 m; runs `eb_cap_deficit` with 0.8 / 0.3 / 0.3 m and `eb_cap_lv32_24` with 0.80 / 0.32 / 0.24 m, both with `--supply-cap deficit`; the supply check is left out of the gate):
+
+| | imp_a (hard 0.4 m, no blocks) | eb_cap_deficit | eb_cap_lv32_24 |
+|---|---|---|---|
+| open land mean depth, season (cm) | 31.8 | 31.8 | 30.9 |
+| open land days deeper than 40 cm | 39.6 | 39.7 | 37.2 |
+| 9 stations: Spearman, bias (cm), RMSE (cm; constant 18.6) | 0.45, 5.4, 16.0 | 0.45, 5.5, 16.2 | 0.48, 2.8, 14.4 |
+| median station r | 0.30 | 0.30 | 0.31 |
+| managed land season mean depth, mean (cm); deeper than 60 cm | 32.4; 0.0% | 33.5; 0.2% | 33.5; 0.2% |
+
+The class levels move the open land about 1 cm shallower and the station fit a little (RMSE 14.4 cm); the gate still fails on the median station r and on beating the distance prediction. The nine stations were not used to choose the levels. Map: `watertable_map.png` in the `eb_cap_lv32_24` run folder (`scripts/plot_watertable_map.py`, with its known limitations printed under it).
+
 ## 7. Interpretation
 
 1. **The gate failed, but the test cannot discriminate.** The survey depths follow neither distance to canal nor peat thickness, within teams or between them, and differ mainly by field team. That holds whether the team effect comes from method or from visit dates the survey does not record. No model of the water table can reproduce it. A model that matched the true water table would still score near zero against these readings, so the failure says nothing about the model's spatial skill.
@@ -460,7 +677,12 @@ This reach matches the literature: under 5 cm of lateral effect by about 300 m (
    - a site with stations and LiDAR: Sugihan-Lumpur (51 stations) or Pulau Padang (LiDAR 2016, the MIKE SHE study of Kurnianto 2026 on the same island);
    - the KHG supply deficit as a second check: the canal and edge inflow of the model against the station-based deficit where both exist.
 2. **Specific yield and ET.** The literature (section 2.4) supports a surface Sy of 0.1–0.3 for drained peat, against 0.6 in the tropical sets, and ET that falls as the water table deepens. A lower Sy makes every drawdown larger: closer to the readings at Tebing Tinggi (section 7, point 2), further from the stations at Sugihan-Lumpur, where the model already drains too far. ET that falls with depth works the other way and slows drawdown. At Sugihan-Lumpur neither replaces the missing supply, so both belong after the canal boundary (item 0). A Sy(z) of about 0.3 at the surface falling to 0.1 at −1.5 m can be added as a third peat set, labelled as literature-based, not calibrated.
-3. **The canal boundary for block scenarios:** port Urzainki 2023's canal network and weir equation, or MODFLOW 6 with stage per reach (D5, D7).
+3. **The canal boundary for block scenarios:** port Urzainki 2023's canal network and weir equation, or MODFLOW 6 with stage per reach (D5, D7). A lumped canal store per sub-KHG now exists (D19); it has no reaches, so blocks still act through fixed reach levels (D17).
+4. **Managed land and canal levels after section 6.10 (proposal, not decided).**
+   - The managed target cannot be measured with SiTMAT. Treat it as a scenario input with a band, for example 0.4 m (the rule), 0.6 m (RSPO and published oil palm) and 0.8 m (published Acacia), and report how unmanaged land and the block effects change across the band, not one value.
+   - Canal levels outside managed land per class from measurement where a fine LiDAR DTM exists (Pulau Padang: primary 0.8 m, secondary and tertiary at least 0.3 m), and otherwise a stated default inside the published range, replacing 1.2 m. A baseline at repeat-pump's 1.0 m stays for block scenarios (D17).
+   - A canal network with a stage that falls through the dry season (Urzainki et al. 2023) stays a later option: it adds machinery, and its own inputs (outlet stage, canal geometry) are as unmeasured as the levels it replaces. *Done in part (D19):* a lumped store per sub-KHG. On the screened community record it overshoots the dry-season fall (section 6.12), so the fixed LiDAR levels with canals inside cells (D18) are the better default for now.
+5. **Score the gates on screened station records (D20)?** *Decided 2026-10-29 (D21): yes, with `--screen-stations`.* The screened record changes the community result at Mendahara-Batanghari from a 63 cm to an 11 cm fall. Scoring the gates on it would change what every station gate measures, so it is left to the project owner; the rule itself is fixed in code.
 
 **Recorded for later (decided 2026-10-28): MODFLOW 6.** Deferred, and listed in `re-peat/docs/12-parked.md`. MODFLOW 6 through flopy would give a standard, peer-recognised engine with a water budget per boundary, canal packages (RIV, DRN, SFR), pumps (WEL) and a Newton solver. Its costs are layering the peat (about 8–10 layers, thin at the top, to follow T(z) falling by a factor e every 0.4 m) and a compiled binary that the QGIS plugin would have to download. It faces the same open questions as our solver: the canal boundary in managed land, specific yield and the gate. flopy 3.11.0 (CC0, Python ≥ 3.11) and MODFLOW 6.8.1 (Windows binary, 2026-09-23) were checked on PyPI and GitHub on 2026-10-28.
 
@@ -499,7 +721,30 @@ C="--khg 15.05-07-10.01 --dem lidar --start 2025-11-01 --end 2026-10-01 --et mod
 repeat-neraca-model $C; repeat-neraca-model $C --blocks pump; repeat-neraca-model $C --blocks pump --supply pump
 R=$REPEAT_KHG/15.05-07-10.01_mendahara_batanghari/03_neraca/lidar/runs/model
 python scripts/compare_scenarios.py --baseline $R/tropical-large_p1.2_s1.2_t1.2_mt0.4_e0.3_100m_pb_dbbsdlp     --scenario $R/tropical-large_p1.2_s1.2_t1.2_mt0.4_blk_e0.3_100m_pb_dbbsdlp $R/tropical-large_p1.2_s1.2_t1.2_mt0.4_blk_sup0.4_e0.3_100m_pb_dbbsdlp     --out docs/reports/scenarios_15.05-07-10.01_canals1.2.md
-python scripts/summarise_model_runs.py --runs "$REPEAT_KHG/*/03_neraca/lidar/runs/model/*" --out docs/reports/model_station_runs.md
+# sections 6.10-6.11: concession levels, canal levels in LiDAR, managed-target band with LiDAR canal levels (SITMAT_PROCESSED set)
+python scripts/check_concession_levels.py --out docs/reports/concession_levels.md
+python scripts/check_lidar_canal_levels.py --khg 14.10.01 --dtm "$REPEAT_DATA/lidar_pulau_padang_2016/DTM_2mFloat.tif" --flown "November 2016" --out docs/reports/lidar_canal_levels_14.10.01.md
+for k in "16.02.01 200" "14.02-04-05.01 200" "15.05-07-10.01 100"; do set -- $k; for mt in 0.4 0.6 0.8; do
+  repeat-neraca-model --khg $1 --dem lidar --start 2025-11-01 --end 2026-10-01 --et mod16nrt --drawdown primary=0.8,secondary=0.3,tertiary=0.3       --peat-base --depth-fallback bbsdlp --res $2 --peat-table tropical-large --managed-target $mt
+done; done
+python scripts/summarise_target_band.py --runs "$REPEAT_KHG/*/03_neraca/lidar/runs/model/tropical-large_*_mt0.[468]_e0.3_*_pb_dbbsdlp" --out docs/reports/managed_target_band.md
+# section 6.12: canals inside cells (D18) and the canal store (D19); the numerical check; section 6.13: station outliers
+python scripts/check_subcell_canal.py --out docs/reports/subcell_canal_check.md
+C="--dem lidar --start 2025-11-01 --end 2026-10-01 --et mod16nrt --drawdown primary=0.8,secondary=0.3,tertiary=0.3 --peat-base --depth-fallback bbsdlp --peat-table tropical-large --managed-target 0.4"
+for k in "16.02.01 200" "14.02-04-05.01 200" "15.05-07-10.01 100"; do set -- $k
+  repeat-neraca-model --khg $1 --res $2 $C --canal-cells leak
+  repeat-neraca-model --khg $1 --res $2 $C --canal-store
+  repeat-neraca-model --khg $1 --res $2 $C --canal-store --canal-tau 0.1
+done
+repeat-neraca-model --khg 15.05-07-10.01 --res 200 $C; repeat-neraca-model --khg 15.05-07-10.01 --res 200 $C --canal-cells leak
+M=03_neraca/lidar/runs/model
+python scripts/summarise_target_band.py --runs "$REPEAT_KHG/*/$M/tropical-large_p0.8_s0.3_t0.3_mt0.4_e0.3_*_pb_dbbsdlp" "$REPEAT_KHG/*/$M/tropical-large_p0.8_s0.3_t0.3_mt0.4_lk*_e0.3_*_pb_dbbsdlp" \
+    "$REPEAT_KHG/*/$M/tropical-large_p1.2_s1.2_t1.2_mt0.4_e0.3_*_pb_dbbsdlp" "$REPEAT_KHG/15.05*/$M/tropical-large_p0.6_s0.6_t0.6_mt0.4_e0.3_100m_pb_dbbsdlp" --out docs/reports/canal_modes.md
+# D21, recommended set-up (section 6.14)
+for k in "16.02.01 200" "14.02-04-05.01 200" "15.05-07-10.01 100"; do set -- $k; repeat-neraca-model --khg $1 --res $2 $C --canal-cells leak --screen-stations; done
+python ../re-peat/tools/project_report_figures.py  # or call model_days_maps_final()
+python scripts/check_station_outliers.py --khg 16.02.01 14.02-04-05.01 15.05-07-10.01 --out docs/reports/station_outliers.md
+python scripts/summarise_model_runs.py --runs "$REPEAT_KHG/*/03_neraca/*/runs/model/[tdyu]*" --out docs/reports/model_station_runs.md
 python -m pytest -q
 ```
 
@@ -508,13 +753,13 @@ python -m pytest -q
 | Where | What |
 |---|---|
 | `repeat-neraca/src/repeat_neraca/` | `model.py`; `groundwater/simulate.py`, `fieldobs.py`, `fieldcheck.py` (new); the solver and grid modules (moved) |
-| `repeat-neraca/scripts/` | `model_sweep.py`, `check_field_inputs.py`, `rank_station_sites.py`, `summarise_model_runs.py`, `compare_scenarios.py` |
+| `repeat-neraca/scripts/` | `model_sweep.py`, `check_field_inputs.py`, `rank_station_sites.py`, `summarise_model_runs.py`, `compare_scenarios.py`, `check_concession_levels.py`, `check_lidar_canal_levels.py`, `summarise_target_band.py`, `check_subcell_canal.py`, `check_station_outliers.py` |
 | `repeat-neraca/tests/test_model.py` | tests of the new modules |
-| `repeat-neraca/docs/reports/` | `model_sweep_14.10.03_200m.md`, `field_inputs_14.10.03.md`, `station_sites.md` (and `.csv`), `model_station_runs.md`, `scenarios_15.05-07-10.01.md`, `scenarios_15.05-07-10.01_canals1.2.md` |
-| `repeat-neraca/research_notes/` | `groundwater_models_review.md` (models and data), `peat_parameters_sumatra_kalimantan.md` (parameters, with Ismail et al. 2021 in full), `burned_peat_hydrology.md` |
+| `repeat-neraca/docs/reports/` | `model_sweep_14.10.03_200m.md`, `field_inputs_14.10.03.md`, `station_sites.md` (and `.csv`), `model_station_runs.md`, `scenarios_15.05-07-10.01.md`, `scenarios_15.05-07-10.01_canals1.2.md`, `concession_levels.md`, `lidar_canal_levels_14.10.01.md`, `managed_target_band.md`, `subcell_canal_check.md`, `canal_modes.md`, `station_outliers.md` |
+| `repeat-neraca/research_notes/` | `groundwater_models_review.md` (models and data), `peat_parameters_sumatra_kalimantan.md` (parameters, with Ismail et al. 2021 in full), `burned_peat_hydrology.md`, `canal_levels_evidence.md` (canal levels and plantation water tables) |
 | `_khg/14.10.03_pulau_tebing_tinggi/` | `00_inputs/field_wtd.csv` (listed in `local_manifest.csv`), `03_neraca/inputs/model/` (forcing), `03_neraca/deltadtm/runs/model/` (runs), `logs/` |
 | `re-peat/tools/pipeline/localize.py` | keeps manifest rows written by other tools |
-| `repeat-pump` | solver removed; depends on `repeat-neraca` v0.2.0 |
+| `repeat-pump` | solver removed; depends on `repeat-neraca` v0.2.0 (the pin is unchanged: 0.3.0 is not tagged, so the plugin keeps the 0.2.0 solver until a v0.3.0 tag exists and the pin moves) |
 
 ## References
 

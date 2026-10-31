@@ -14,12 +14,13 @@ from pathlib import Path
 
 def gate(g: dict, n_unflagged: int, supply: dict | None = None) -> str:
     """pass / fail / not testable. Rescored from the stored numbers, so runs made before a rule changed follow the current rules:
-    checks without stations to use are not testable, and the supply check is `fieldcheck.supply_ok` (ratio or absolute floor)."""
+    checks without stations to use are not testable (the canal-depth check of canal-store runs needs none), and the supply check is
+    `fieldcheck.supply_ok` (ratio or absolute floor)."""
     from repeat_neraca.groundwater import fieldcheck as FC
     spatial = ("spearman", "rmse")          # the checks on levels need 8 stations; the dynamics and supply checks are made with fewer
     checks = {k: (None if n_unflagged < 8 and k.startswith(spatial) else v) for k, v in g["checks"].items()}
     if n_unflagged == 0:
-        checks = {k: (None if "supply" not in k else v) for k, v in checks.items()}
+        checks = {k: (None if "supply" not in k and "canal depth" not in k else v) for k, v in checks.items()}
     if supply and "model_managed_supply_mm" in supply:
         checks = {k: v for k, v in checks.items() if "supply" not in k}
         checks["supply"] = FC.supply_ok(supply["model_managed_supply_mm"], supply["station_deficit_mm"])
@@ -47,7 +48,9 @@ def main(argv=None):
         sup = s.get("supply_check", {})
         kinds = s.get("by_kind", {})
         mt = c.get("managed_target") or ""
-        extra = "; ".join(x for x in ([f"peat base"] if c.get("peat_base") else []) + ([f"depth {c['depth_fallback']}"] if c.get("depth_fallback", "none") != "none" else []))
+        extra = "; ".join(x for x in ([f"peat base"] if c.get("peat_base") else []) + ([f"depth {c['depth_fallback']}"] if c.get("depth_fallback", "none") != "none" else [])
+                         + (["canals inside cells"] if c.get("canal_cells") == "leak" else [])
+                         + ([f"canal store, tau {c['canal_store']['tau_days']:g} d"] if c.get("canal_store") else []))
         supply = f"{sup['model_managed_supply_mm']:.0f}" if sup and "model_managed_supply_mm" in sup else ""
         rows.append([c["khg"], f"{c['res_m']:g} m", c["peat_table"], canal, mt, extra, c.get("et_stress") and "yes" or "no",
                      f"{dyn['n_unflagged']} of {dyn['n_stations']}",

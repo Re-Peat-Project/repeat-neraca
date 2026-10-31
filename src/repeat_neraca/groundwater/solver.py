@@ -92,6 +92,9 @@ class PeatTable:
         return np.maximum(t * multiplier, self.t_floor)
 
 
+PONDED_LOG: list | None = None   # diagnostic: when a list, each solve appends [water removed as ponding, mm over the free cells; share of free cells that ponded]
+
+
 def solve(
     surface: np.ndarray,
     domain: np.ndarray,
@@ -107,12 +110,20 @@ def solve(
     picard_tol: float = 1e-5,
     remove_ponding: bool = True,
     keep_history: bool = False,
+    leak_factor: np.ndarray | None = None,
+    leak_head: np.ndarray | None = None,
+    linear: str = "direct",
 ):
     """Advance h over len(net_recharge) steps of dt days (each step a scalar or an (ny, nx) field of net recharge, m/day).
 
     surface, domain (bool), fixed (bool, inside the domain), fixed_head and h0 are (ny, nx).
     sy_fn(zeta) and trans_fn(zeta, ...) are vectorised; trans_fn is called as trans_fn(zeta, cells)
     where cells are the flat indices of the evaluated cells, so it can look up per-cell attributes.
+    leak_factor and leak_head, (ny, nx), give free cells a head-dependent exchange with a water level inside the cell (a canal narrower
+    than the cell): q = leak_factor * T(zeta) * (leak_head - h), m3/day into the cell, implicit in h with T taken at the start of the step
+    (a lagged coefficient: a conductance that follows the Picard iterate made the iteration hit picard_max). 0 or None: no exchange.
+    linear: "direct" (sparse LU) or "cg" (conjugate gradients with a diagonal preconditioner, started from the Picard iterate; the
+    matrix is symmetric and dominated by its storage diagonal, so it converges in a few iterations; falls back to LU if it does not).
     Returns the final head, and the list of daily heads if keep_history.
     """
     ny, nx = surface.shape
@@ -138,9 +149,14 @@ def solve(
     ok = dom_flat[fa] & dom_flat[fb] & ~(fixed_flat[fa] & fixed_flat[fb])
     fa, fb = fa[ok], fb[ok]
 
+    if leak_factor is not None:
+        lf = np.asarray(leak_factor, float).ravel()[free_flat]
+        lh = np.nan_to_num(np.asarray(leak_head, float).ravel()[free_flat])
+
     for r in np.atleast_1d(np.asarray(net_recharge, dtype=float)):
         h_old = head.copy()
         h_it = head.copy()
+        c = None
         for _ in range(picard_max):
             zeta = h_it - z
             cells = np.flatnonzero(dom_flat)
@@ -167,17 +183,29 @@ def solve(
             cols = np.concatenate([pb[both], pa[both]])
             vals = -np.concatenate([g[both], g[both]])
             diag += sy[free_flat] * dx * dx / dt
+            if leak_factor is not None:                       # canal inside the cell: conductance from the cell's own transmissivity
+                if c is None:
+                    c = lf * tr[free_flat]
+                diag += c
+                rhs += c * lh
             A = sp.csr_matrix((np.concatenate([vals, diag]),
                                (np.concatenate([rows, np.arange(free_flat.size)]),
                                 np.concatenate([cols, np.arange(free_flat.size)]))),
                               shape=(free_flat.size, free_flat.size))
             h_new = h_it.copy()
-            h_new[free_flat] = spla.spsolve(A.tocsc(), rhs)
+            if linear == "cg":
+                x, info = spla.cg(A, rhs, x0=h_it[free_flat], rtol=1e-12, atol=0.0, maxiter=500, M=sp.diags(1.0 / A.diagonal()))
+                h_new[free_flat] = x if info == 0 else spla.spsolve(A.tocsc(), rhs)
+            else:
+                h_new[free_flat] = spla.spsolve(A.tocsc(), rhs)
             delta = np.max(np.abs(h_new[free_flat] - h_it[free_flat])) if free_flat.size else 0.0
             h_it = h_new
             if delta < picard_tol:
                 break
         if remove_ponding:
+            if PONDED_LOG is not None and free_flat.size:
+                ex = np.maximum(h_it[free_flat] - z[free_flat], 0.0)           # head above the land; storage at the surface is Sy(0)
+                PONDED_LOG.append([float(ex.sum() * sy_fn(np.zeros(1))[0] * 1000.0 / free_flat.size), float((ex > 0).mean())])
             h_it = np.where(dom_flat, np.minimum(h_it, z), h_it)
             h_it = np.where(fixed_flat, head, h_it)
         head = h_it

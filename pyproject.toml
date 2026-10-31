@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repeat-neraca"
-version = "0.2.0"
+version = "0.3.0"
 description = "Neraca air (water balance) of a KHG for RE-PEAT: climatic balance per sub-KHG, KHG deficit, physical model and synthetic testbed"
 requires-python = ">=3.11"
 dependencies = ["numpy", "scipy", "pandas>=2.0", "pydantic>=2", "pyyaml"]

@@ -41,6 +41,12 @@ LICENCES = "landstatus/ALL_Updade__IZIN_USAHA__PBPH_Perkebunan_HTRKM_Tambang__20
 MANAGED_LICENCES = ("PBPH", "Perkebunan Kelapa Sawit")
 REGULATORY_TARGET_M = 0.40     # PP 57/2016: the water table of cultivated peat at most 0.4 m below the surface at the compliance points
 BBSDLP_DEPTH_M = {"D1": 0.75, "D2": 1.5, "D3": 2.5, "D4": 4.0, "D5": 6.0, "D6": 8.0}   # class midpoints (D6, >700 cm: 8 m assumed)
+# Canal store (D19), a priori per class. Widths: primary 8 m (plantation canals "5 to 8 m wide", Hooijer et al. 2012; branch canals 5-8 m,
+# Evans et al. 2019); secondary 3 m (the narrowest canals LiDAR maps, "always over 3 m", Vernimmen et al. 2020); tertiary 1 m (Pulau Padang
+# tertiary drains, Ismail et al. 2021). Beds below the land: primary 3 m ("3 m depth", Evans 2019; "over 3 m deep", Hooijer 2012); secondary
+# 1.5 m (every canal in Urzainki et al. 2023); tertiary 1 m (field drains "1 m deep", Evans 2019). research_notes/canal_levels_evidence.md
+CANAL_WIDTH_M = {"primary": 8.0, "secondary": 3.0, "tertiary": 1.0}
+CANAL_BED_M = {"primary": 3.0, "secondary": 1.5, "tertiary": 1.0}
 CANAL_NAMES = {"primary": ["Kanal Primer"], "secondary": ["Kanal Sekunder"], "tertiary": ["Kanal Tersier"]}
 
 
@@ -235,6 +241,31 @@ def block_levels(kf: Path, dem: str, khg, arg: str) -> tuple[np.ndarray, dict]:
     return v, {"blocks": src, "block_reaches": int(len(g)), "block_reach_cells": int(np.isfinite(v).sum())}
 
 
+def existing_block_levels(kf: Path, khg, level: float, radius: float) -> tuple[np.ndarray | None, dict]:
+    """Canal water depth below the land (m) on the canal cells within `radius` m of an existing canal block (D23), NaN elsewhere.
+    The blocks are the BRGM/PPEG `Sekat Kanal` points clipped to the KHG (`00_inputs/blocks.gpkg`): points only, no crest level and no flow
+    direction, so a block holds the canal at `level` for a radius around it (field reports: rewetting 100 to 400 m along the canal)."""
+    import geopandas as gpd
+    from rasterio import features
+    f = kf / "00_inputs" / "blocks.gpkg"
+    if not f.exists():
+        return None, {"existing_blocks": "none: no 00_inputs/blocks.gpkg"}
+    g = gpd.read_file(f)
+    g = g[g.geometry.notna()]
+    if "Jenis" in g:
+        g = g[g.Jenis.astype(str).str.strip().str.lower() == "sekat kanal"]
+    g = g.to_crs(khg.crs)
+    if g.empty:
+        return None, {"existing_blocks": "none: no Sekat Kanal points in 00_inputs/blocks.gpkg"}
+    near = features.rasterize([(x.buffer(radius), 1) for x in g.geometry], out_shape=khg.shape, transform=khg.transform, fill=0, dtype="uint8") > 0
+    canal = np.zeros(khg.shape, bool)
+    for cls in khg.canal:
+        canal |= khg.canal[cls]
+    v = np.where(near & canal & khg.domain, float(level), np.nan).astype("float32")
+    return v, {"existing_blocks": f"00_inputs/blocks.gpkg, {len(g)} Sekat Kanal points, canal cells within {radius:g} m held at {level:g} m below the land",
+               "existing_block_points": int(len(g)), "existing_block_canal_cells": int(np.isfinite(v).sum())}
+
+
 def supply_areas(kf: Path, dem: str, khg, arg: str, target: float) -> tuple[np.ndarray, dict]:
     """Target water table (m below the surface) on the land a scenario supplies with water, NaN elsewhere."""
     from rasterio import features
@@ -292,6 +323,11 @@ def main(argv=None):
     ap.add_argument("--blocks", default="none",
                     help="canal blocks of a scenario: 'pump' (repeat-pump's sekat_reach: each block's reach and its water depth below the land), "
                          "or a GeoPackage path[:layer] with lines and a depth_m field; 'none' (default)")
+    ap.add_argument("--existing-blocks", choices=["brgm", "none"], default="brgm",
+                    help="existing canal blocks (BRGM/PPEG Sekat Kanal points, 00_inputs/blocks.gpkg): canal cells within --block-radius m of a block are held "
+                         "at --block-level m below the land, or at the class level where that is shallower (D23); `none` reproduces runs made before D23")
+    ap.add_argument("--block-level", type=float, default=0.4, help="canal level behind an existing block, m below the land (assumed: the PP 57/2016 limit; the layer has no crest level)")
+    ap.add_argument("--block-radius", type=float, default=200.0, help="m of canal around an existing block held at the block level (assumed: field reports 100 to 400 m)")
     ap.add_argument("--supply", default="none",
                     help="pumping of a scenario: 'pump' (the sub-KHG of repeat-pump's interventions layer that receive water), or a GeoPackage "
                          "path[:layer] of polygons; the land is held at --supply-target like managed land, and the water it takes is the pumping need")
@@ -300,6 +336,18 @@ def main(argv=None):
                     help="IZIN_USAHA values of the licence layer that count as managed land (plantations with water management)")
     ap.add_argument("--et-stress", choices=["none", "drained", "natural"], default="none",
                     help="ET falls where the water table is deep (PEATCLSM-Trop): drained = registry et_stress_start/end, natural = -0.70/-1.82 m")
+    ap.add_argument("--canal-cells", choices=["fixed", "leak"], default="fixed",
+                    help="fixed: every cell a canal touches is held at the canal level; leak: canals narrower than a cell exchange water with it (D18)")
+    ap.add_argument("--canal-store", action="store_true",
+                    help="canal level from a water balance per sub-KHG (D19), moving around the --drawdown levels as the sill; implies --canal-cells leak")
+    ap.add_argument("--canal-tau", type=float, default=1.0, help="canal store: days for water above the sill to leave through the outlet")
+    ap.add_argument("--screen-stations", action="store_true",
+                    help="score stations on the screened record (fieldcheck.screen: restarts after gaps, settling days, stuck loggers left out; D21)")
+    ap.add_argument("--log-ponding", action="store_true", help="also write model_ponded.csv: water the solver removes above the surface, per day (diagnostic)")
+    ap.add_argument("--supply-cap", default=None, help="water management adds at most this much to each managed cell (mm), so a cell that has used it falls "
+                    "with the water table (D22): a number (over --season), or `deficit` (the station-based deficit and its period from runs/deficit/neraca_khg.csv; "
+                    "the supply check of the gate is then not testable, since the cap is taken from it), or `climate` (the shortfall of the run over the KHG's own dry window, "
+                    "from its 2018-2025 rain and ET; needs no stations, so the supply check still tests it)")
     ap.add_argument("--run", default=None, help="run folder name (default from the options)")
     a = ap.parse_args(argv)
 
@@ -318,8 +366,21 @@ def main(argv=None):
         tag += "_mt" + ("loo" if a.managed_target == "stations-loo" else f"{float(a.managed_target):g}")
     if a.blocks != "none":
         tag += "_blk"
+    if a.existing_blocks == "brgm" and (kf / "00_inputs" / "blocks.gpkg").exists():
+        tag += "_eb" + ("" if (a.block_level, a.block_radius) == (0.4, 200.0) else f"{a.block_level:g}r{a.block_radius:g}")
     if a.supply != "none":
         tag += f"_sup{a.supply_target:g}"
+    leak = a.canal_cells == "leak" or a.canal_store
+    if leak and ddm:
+        raise SystemExit("--canal-cells leak and --canal-store need --managed-target, not --drawdown-managed")
+    if leak:
+        tag += "_lk"
+    if a.canal_store:
+        tag += f"_cs{a.canal_tau:g}"
+    if a.screen_stations:
+        tag += "_scr"
+    if a.supply_cap:
+        tag += f"_cap{a.supply_cap}"
     run_name = a.run or (f"{a.peat_table}_{tag}_e{edge:g}_{a.res:g}m" + ("" if a.et_stress == "none" else f"_et{a.et_stress}")
                          + ("_pb" if a.peat_base else "") + ("" if a.depth_fallback == "none" else f"_d{a.depth_fallback}"))
     out = kf / "03_neraca" / a.dem / "runs" / "model" / run_name
@@ -366,6 +427,12 @@ def main(argv=None):
     if a.blocks != "none":
         blocks, n1 = block_levels(kf, a.dem, khg, a.blocks)
         snotes.update(n1)
+    if a.existing_blocks == "brgm":
+        eb, n0 = existing_block_levels(kf, khg, a.block_level, a.block_radius)
+        snotes.update(n0)
+        if eb is not None:                                       # with a scenario's blocks, the shallower level of the two
+            blocks = eb if blocks is None else np.fmin(blocks, eb)
+            snotes["existing_blocks_on"] = True
     if a.supply != "none":                                       # pumped land is held like managed land; where both, the shallower target
         sup, n2 = supply_areas(kf, a.dem, khg, a.supply, a.supply_target)
         snotes.update(n2)
@@ -373,6 +440,9 @@ def main(argv=None):
         managed = np.isfinite(target)
     mnotes.update(snotes)
     b = SIM.Boundary(dd, edge, managed if ddm else None, ddm, target, blocks)
+    if leak:
+        b.leak_length = G.canal_length(cfg, khg)
+        b.store = SIM.CanalStore(CANAL_WIDTH_M, CANAL_BED_M, a.canal_tau) if a.canal_store else None
     table = PeatTable.named(a.peat_table)
     log(f"{kf.name} {a.dem} {a.res:g} m, {khg.shape}, {len(dates)} days, peat table {a.peat_table}, drawdown {dd}, edge {edge:g} m")
     n_pts = 0 if pts is None else len(pts)
@@ -381,8 +451,26 @@ def main(argv=None):
     stress = None if a.et_stress == "none" else ((-0.70, -1.82) if a.et_stress == "natural" else (float(reg["et_stress_start"]), float(reg["et_stress_end"])))
     s0, s1 = (pd.Timestamp(f"{dates[-1].year}-{x}") for x in a.season.split(","))
     season = (dates >= s0) & (dates <= s1)
+    cap_mm, cap_days = None, None
+    if a.supply_cap:
+        if a.supply_cap == "deficit":
+            dfile0 = kf / "03_neraca" / "runs" / "deficit" / "neraca_khg.csv"
+            if not dfile0.exists():
+                raise SystemExit(f"--supply-cap deficit needs {dfile0} (repeat-neraca-run)")
+            dk0 = pd.read_csv(dfile0).iloc[0]
+            cap_mm, cap_days = float(dk0.deficit_mm), np.asarray((dates >= pd.Timestamp(dk0.period_start)) & (dates <= pd.Timestamp(dk0.period_end)))
+        elif a.supply_cap == "climate":
+            from repeat_neraca.supply_rule import climate_cap
+            cap_mm, cap_days, w0, wmean = climate_cap(kf, dates, f.P_mm.values, f.ET_mm.values)
+            log(f"dry window from the 2018-2025 record: 14 dekads from dekad {w0 + 1} of 36, mean shortfall {wmean:.0f} mm")
+        else:
+            cap_mm, cap_days = float(a.supply_cap), season
+        if not np.asarray(cap_days).any():
+            raise SystemExit("--supply-cap: the cap window has no days inside the run")
+        log(f"supply cap {cap_mm:.0f} mm per managed cell over {int(np.asarray(cap_days).sum())} days")
     r = SIM.run(khg, net, table, b, a.h0, points=(rows, cols) if len(rows) else None, keep_days=window, log=log, season_days=season,
-                rain_m_day=f.P_mm.values / 1000.0, et_m_day=f.ET_mm.values / 1000.0, et_stress=stress, peat_base=a.peat_base)
+                rain_m_day=f.P_mm.values / 1000.0, et_m_day=f.ET_mm.values / 1000.0, et_stress=stress, peat_base=a.peat_base,
+                log_ponding=a.log_ponding, supply_cap_mm=cap_mm, supply_cap_days=cap_days)
     sampled = None if r["points"] is None else -100 * r["points"]          # days x samples, cm positive down
 
     s = r["series"]
@@ -392,6 +480,9 @@ def main(argv=None):
                            "unmanaged_share_deeper_40cm": s["unmanaged_share_deeper_0_4"], "managed_supply_mm": s["managed_supply_mm"],
                            "managed_supply_m3": s["managed_supply_m3"]})
     series.to_csv(out / "model_series.csv", index=False, float_format="%.4f")
+    if r["ponded"] is not None:
+        pd.DataFrame({"date": dates.date, "ponded_mm": r["ponded"][:, 0], "share_cells_ponded": r["ponded"][:, 1]}).to_csv(
+            out / "model_ponded.csv", index=False, float_format="%.4f")
     write_tif(out / "model_depth_window.tif", -100 * r["window_mean_depth_m"], khg)
     write_tif(out / "model_depth_end.tif", -100 * r["final_depth_m"], khg)
     open_cells = khg.domain & ~r["fixed"] & (~r["held"] if r["held"] is not None else True)
@@ -401,6 +492,24 @@ def main(argv=None):
         write_tif(out / "model_season_managed_supply.tif", np.where(r["held"], r["season_supply_mm"], np.nan), khg)
     units = unit_table(khg, r, open_cells, int(r["season_n_days"]))
     units.to_csv(out / "model_units.csv", index=False, float_format="%.2f")
+    cstore = None
+    if r["leak"] is not None:
+        mnotes["leaky_canal_cell_share_of_khg"] = float(r["leak"]["cells"][khg.domain].mean())
+        write_tif(out / "model_canal_length.tif", np.where(r["leak"]["cells"], sum(b.leak_length.values()), np.nan), khg)
+    if r["canal_stage"] is not None:                             # the canal store: level and water depth per store, mass closure, gate
+        cs = r["canal_stage"]
+        uid = [khg.unit_ids[k] if 0 <= k < len(khg.unit_ids) else "outside units" for k in cs["store_ids"]]
+        pd.concat([pd.DataFrame({"date": dates.date, "unit_id": u, "y_m": cs["y_m"][:, k], "canal_depth_m": cs["depth_m"][:, k]})
+                   for k, u in enumerate(uid)]).to_csv(out / "canal_stage.csv", index=False, float_format="%.4f")
+        khg_depth = (cs["depth_m"] * cs["cells"]).sum(axis=1) / cs["cells"].sum()
+        exch_m3 = np.abs(series.canal_in_mm.values) * int(r["free"].sum()) * khg.dx ** 2 / 1000.0
+        med = float(np.nanmedian(khg_depth[season])) if season.any() else float("nan")
+        cstore = {"stores": len(uid), "canal_area_km2": float(cs["area_m2"].sum() / 1e6), "tau_days": a.canal_tau, "width_m": CANAL_WIDTH_M,
+                  "bed_m": CANAL_BED_M, "season_median_canal_depth_m": med,
+                  "season_min_max_canal_depth_m": [float(np.nanmin(khg_depth[season])), float(np.nanmax(khg_depth[season]))] if season.any() else None,
+                  "closure_share_of_exchange": float(np.nansum(np.abs(cs["closure_m3"])) / max(np.nansum(exch_m3), 1e-9)),
+                  "gate": {f"season median canal depth in {FC.CANAL_DEPTH_RANGE_M[0]:g}-{FC.CANAL_DEPTH_RANGE_M[1]:g} m": FC.canal_depth_ok(med)}}
+        (out / "canal_store.json").write_text(json.dumps(cstore, indent=2, default=float), encoding="utf-8")
     if r["held"] is not None:                                   # held cells are imposed: a "still needs rewetting" map must leave them out
         write_tif(out / "model_managed_target.tif", np.where(khg.domain, 100 * target, np.nan), khg)
     inputs = [("DTM", notes["dtm"], 1.0), ("KHG boundary", "00_inputs/khg.gpkg", 1.0), ("canals", "00_inputs/canals.gpkg (KET_KANAL)", 1.0),
@@ -415,7 +524,7 @@ def main(argv=None):
     if a.managed_target:
         inputs += [("managed target", mnotes["managed_target_mode"], float(managed[khg.domain].mean()))]
     if blocks is not None:
-        inputs += [("canal blocks (scenario)", mnotes["blocks"], float(np.isfinite(blocks)[khg.domain].mean()))]
+        inputs += [("canal blocks" + (" (scenario)" if "blocks" in mnotes else " (existing, BRGM)"), mnotes.get("blocks", mnotes.get("existing_blocks")), float(np.isfinite(blocks)[khg.domain].mean()))]
     if a.supply != "none":
         inputs += [("water supply (scenario)", mnotes["supply"], mnotes["supply_share_of_khg"])]
     inputs += [("stations", str(sp.relative_to(kf)) if stn is not None else "none", float("nan")),
@@ -447,6 +556,8 @@ def main(argv=None):
     st_scores = None
     if stn is not None and len(stn):
         obs = pd.read_csv(sdp, parse_dates=["date"]).pivot(index="date", columns="station_id", values="depth_cm").reindex(dates)
+        if a.screen_stations:
+            obs = obs.apply(lambda col: FC.screen(col)[0].reindex(obs.index))
         sim_st = pd.DataFrame(sampled[:, n_pts:], index=dates, columns=stn.station_id.values)
         on_fixed = r["fixed"][stn.row, stn.col]
         group = stn["concession"].fillna("(none)") if "concession" in stn else pd.Series("(none)", index=stn.index)
@@ -465,6 +576,13 @@ def main(argv=None):
                                     "in_managed_land": int(v.managed.sum())}
                                 for k, v in g2.groupby("kind")}
         st_scores["excluded"] = {"on_fixed_cell": int(on_fixed.sum()), "outside_khg": int(len(pd.read_csv(sp)) - len(stn))}
+        if r["leak"] is not None:                               # canal runs: community level and fall together; the canal store's depth
+            st_scores["on_leaky_canal_cell"] = int(r["leak"]["cells"][stn.row, stn.col].sum())
+            st_scores["gate"]["checks"][f"community level and drawdown within {FC.COMMUNITY_TOL_CM:g} cm"] = \
+                FC.community_ok(st_scores["by_kind"].get("community"))
+            if cstore is not None:
+                st_scores["gate"]["checks"].update(cstore["gate"])
+            st_scores["gate"]["pass"] = FC.gate_pass(st_scores["gate"]["checks"])
         dfile = kf / "03_neraca" / "runs" / "deficit" / "neraca_khg.csv"
         if dfile.exists():
             dk = pd.read_csv(dfile).iloc[0]
@@ -480,8 +598,11 @@ def main(argv=None):
                 lo, hi = FC.SUPPLY_RATIO
                 st_scores["supply_check"].update({"model_managed_supply_mm": sup,
                                                   "model_managed_supply_m3": float(series.managed_supply_m3[sel].sum())})
-                st_scores["gate"]["checks"][f"managed supply within x{hi:g} or {FC.SUPPLY_ABS_MM:g} mm of the station deficit"] = \
-                    FC.supply_ok(sup, float(dk.deficit_mm))
+                if a.supply_cap == "deficit":
+                    st_scores["supply_check"]["cap_from_deficit"] = True       # the check would pass by construction (D22): left out
+                else:
+                    st_scores["gate"]["checks"][f"managed supply within x{hi:g} or {FC.SUPPLY_ABS_MM:g} mm of the station deficit"] = \
+                        FC.supply_ok(sup, float(dk.deficit_mm))
                 st_scores["gate"]["pass"] = FC.gate_pass(st_scores["gate"]["checks"])
         st_table.to_csv(out / "station_scores.csv", index=False, float_format="%.2f")
         sim_st[keep].rename_axis("date").to_csv(out / "station_sim_daily.csv", float_format="%.1f")      # cm, positive down; rescoring needs no rerun
@@ -491,9 +612,18 @@ def main(argv=None):
     (out / "registry_snapshot.json").write_text(json.dumps(snap, indent=2), encoding="utf-8")
     run_cfg = {"khg": kf.name, "dem": a.dem, "res_m": a.res, "start": a.start, "end": a.end, "peat_table": a.peat_table, "drawdown": dd,
                "edge_stage": edge, "drawdown_managed": ddm, "managed_target": a.managed_target, "peat_base": a.peat_base,
-               "depth_fallback": a.depth_fallback, "blocks": a.blocks, "supply": a.supply, "season": a.season, "h0": a.h0, "rain": a.rain, "et": a.et, "et_stress": stress, "inputs": cfg, "notes": {**notes, **khg.notes, **mnotes}}
+               "depth_fallback": a.depth_fallback, "blocks": a.blocks, **({"existing_blocks": {"source": "brgm", "level_m": a.block_level, "radius_m": a.block_radius}} if snotes.get("existing_blocks_on") else {}),
+               **({"canal_cells": "leak", "canal_store": cstore} if leak else {}), **({"screen_stations": True} if a.screen_stations else {}), **({"supply_cap": a.supply_cap, "supply_cap_mm": cap_mm} if a.supply_cap else {}), "supply": a.supply, "season": a.season, "h0": a.h0, "rain": a.rain, "et": a.et, "et_stress": stress, "inputs": cfg, "notes": {**notes, **khg.notes, **mnotes}}
     (out / "run_config.json").write_text(json.dumps(run_cfg, indent=2, default=str), encoding="utf-8")
     text = report(kf.name, a, run_cfg, series, window, fixed_share, scores, sens, brk, r["seconds"], snap["sha256"], st_scores, units)
+    if leak:
+        text += (f"\nCanals inside cells (D18): {mnotes['leaky_canal_cell_share_of_khg']:.0%} of the KHG's cells hold a canal and stay free; "
+                 f"canal cells fixed: {fixed_share['canal']:.0%} (managed land, block reaches).\n")
+    if cstore is not None:
+        text += (f"\nCanal store (D19): {cstore['stores']} stores, canal water surface {cstore['canal_area_km2']:.2f} km2, outlet time constant "
+                 f"{a.canal_tau:g} days. Season canal water depth below the land, KHG mean: median {cstore['season_median_canal_depth_m']:.2f} m "
+                 f"(range {cstore['season_min_max_canal_depth_m'][0]:.2f} to {cstore['season_min_max_canal_depth_m'][1]:.2f} m). "
+                 f"Mass closure of the coupling: {cstore['closure_share_of_exchange']:.1%} of the canal exchange. `canal_stage.csv` per store.\n")
     (out / "model_report.md").write_text(text, encoding="utf-8")
     print(text)
     print(f"wrote {out}")

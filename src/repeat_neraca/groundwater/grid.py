@@ -112,8 +112,11 @@ def load(cfg: dict, res_m: float) -> RealKHG:
     notes["dtm_valid_in_domain"] = float(ok[domain].mean())
     surface = _fill_nearest(np.where(ok, dtm, 0.0), ok) if ok.any() else np.zeros(shape, "float32")
 
-    pd_cfg = cfg["peat_depth"]
-    depth = _to_grid(pd_cfg["path"], transform, shape, crs, float(pd_cfg.get("scale", 1.0)))
+    pd_cfg = cfg.get("peat_depth")
+    if pd_cfg:
+        depth = _to_grid(pd_cfg["path"], transform, shape, crs, float(pd_cfg.get("scale", 1.0)))
+    else:                          # no peat-depth layer for this KHG: every cell takes the 3.0 m fallback below, valid share 0
+        depth = np.full(shape, np.nan)
     okd = np.isfinite(depth) & (depth > 0)
     notes["peat_depth_valid_in_domain"] = float(okd[domain].mean())
     med = float(np.nanmedian(depth[okd & domain])) if (okd & domain).any() else 3.0
@@ -166,3 +169,31 @@ def fixed_head(khg: RealKHG, canal_drawdown: float, river_stage_below_edge: floa
     fixed = (khg.boundary | canal) & khg.domain
     head = np.where(khg.boundary, khg.surface - river_stage_below_edge, khg.surface - canal_drawdown)
     return fixed, np.where(fixed, head, 0.0)
+
+
+def canal_length(cfg: dict, khg: RealKHG) -> dict:
+    """Canal length per cell (m) by class: the lines of `cfg['canals']` cut into pieces of a tenth of a cell, each piece's length added to
+    the cell holding its midpoint. Cells outside the domain or on the edge ring get 0. For canals narrower than a cell (`simulate.Boundary.leak`)."""
+    import geopandas as gpd
+    import shapely
+    cg = gpd.read_file(cfg["canals"]["path"]).to_crs(khg.crs)
+    field_name = cfg["canals"]["class_field"]
+    ny, nx = khg.shape
+    out = {}
+    for cls in CLASSES:
+        names = [str(v).lower() for v in cfg["canals"]["classes"].get(cls, [])]
+        sel = cg[cg[field_name].astype(str).str.lower().isin(names)] if names else cg.iloc[0:0]
+        acc = np.zeros(ny * nx)
+        lines = sel.geometry[~sel.geometry.is_empty].explode(index_parts=False)
+        lines = lines[lines.geom_type == "LineString"]
+        if len(lines):
+            xy, part = shapely.get_coordinates(shapely.segmentize(lines.values, khg.dx / 10), return_index=True)
+            same = part[1:] == part[:-1]
+            a, b = xy[:-1][same], xy[1:][same]
+            mid, ln = (a + b) / 2, np.hypot(*(b - a).T)
+            col = np.floor((mid[:, 0] - khg.transform.c) / khg.dx).astype(int)
+            row = np.floor((khg.transform.f - mid[:, 1]) / khg.dx).astype(int)
+            ok = (row >= 0) & (row < ny) & (col >= 0) & (col < nx)
+            acc = np.bincount(row[ok] * nx + col[ok], weights=ln[ok], minlength=ny * nx).astype(float)
+        out[cls] = np.where(khg.domain & ~khg.boundary, acc.reshape(ny, nx), 0.0)
+    return out

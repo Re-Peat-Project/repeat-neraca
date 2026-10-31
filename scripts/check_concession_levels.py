@@ -2,6 +2,7 @@
 PP 57/2016 compliance limit (0.4 m)?
 
   python scripts/check_concession_levels.py --out docs/reports/concession_levels.md          # needs SITMAT_PROCESSED
+  python scripts/check_concession_levels.py --screen --out docs/reports/concession_levels_screened.md   # records screened as the gates are (D20)
 
 From `$SITMAT_PROCESSED/daily_long.csv`, unflagged daily values between -300 and +50 cm (SiTMAT: negative below the surface):
   bins          readings per 1 cm bin from -60 to -20 cm, concession and community stations; a step at -40/-41 cm in one group and not the
@@ -24,10 +25,18 @@ LIMIT_CM = -40
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--screen", action="store_true", help="drop restarts after gaps, settling days and stuck runs per station (fieldcheck.screen)")
     a = ap.parse_args(argv)
     sp = Path(os.environ["SITMAT_PROCESSED"])
     d = pd.read_csv(sp / "daily_long.csv", usecols=["kind", "station_id", "date", "water_level_cm", "flag"], parse_dates=["date"])
     d = d[d.flag.isna() & d.water_level_cm.between(-300, 50)].sort_values(["station_id", "date"])
+    if a.screen:
+        from repeat_neraca.groundwater.fieldcheck import screen
+        n0 = len(d)
+        kept = [screen(g.set_index("date").water_level_cm)[0].dropna().reset_index().assign(kind=g.kind.iloc[0], station_id=sid)
+                for sid, g in d.groupby("station_id")]
+        d = pd.concat(kept, ignore_index=True)[["kind", "station_id", "date", "water_level_cm"]]
+        print(f"screened: {len(d):,} of {n0:,} readings kept")
     d["bin"] = np.floor(d.water_level_cm).astype(int)
 
     bins = d[d.bin.between(-60, -20)].groupby(["bin", "kind"]).size().unstack(fill_value=0)
@@ -47,7 +56,7 @@ def main(argv=None):
     q = lambda s: " / ".join(f"{v:.0f}" for v in s.quantile([0.1, 0.25, 0.5, 0.75, 0.9]))
     L = ["# SiTMAT concession water levels and the 40 cm compliance limit", "",
          f"Written by `scripts/check_concession_levels.py` from `$SITMAT_PROCESSED/daily_long.csv` ({d.date.min():%Y-%m-%d} to {d.date.max():%Y-%m-%d}), "
-         "unflagged daily values between -300 and +50 cm. Levels are cm, negative below the surface.", "",
+         "unflagged daily values between -300 and +50 cm" + (", screened per station as the gates are (`fieldcheck.screen`, D20)" if a.screen else "") + ". Levels are cm, negative below the surface.", "",
          f"- Readings: {int((d.kind == 'concession').sum()):,} from {c.station_id.nunique():,} concession stations; "
          f"{int((d.kind == 'community').sum()):,} from {per[per.kind == 'community'].station_id.nunique()} community stations.",
          f"- Readings at -40 cm against -41 cm: {step['concession']:.1f} times as many at concession stations, {step['community']:.1f} at community stations.",

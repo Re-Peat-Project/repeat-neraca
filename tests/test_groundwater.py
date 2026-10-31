@@ -97,3 +97,37 @@ def test_peat_table_ships_as_package_data():
     from pathlib import Path
     cfg = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf8"))
     assert "groundwater/data/*" in cfg["tool"]["setuptools"]["package-data"]["repeat_neraca"]
+
+
+def test_leak_term_off_is_the_plain_solver_and_large_approaches_a_fixed_cell():
+    ny, nx, dx, sy, T = 3, 11, 50.0, 0.2, 100.0
+    z = np.zeros((ny, nx))
+    domain = np.ones((ny, nx), bool)
+    none = np.zeros((ny, nx), bool)
+    sy_fn, tr_fn = const_fns(sy, T)
+    plain = solve(z, domain, dx, none, z, z, [-0.004] * 20, sy_fn, tr_fn)
+    zero = solve(z, domain, dx, none, z, z, [-0.004] * 20, sy_fn, tr_fn, leak_factor=np.zeros((ny, nx)), leak_head=z)
+    assert np.array_equal(plain, zero)
+    fixed = none.copy()
+    fixed[:, 5] = True
+    canal = np.full((ny, nx), -0.8)
+    ref = solve(z, domain, dx, fixed, canal, np.where(fixed, -0.8, 0.0), [-0.004] * 20, sy_fn, tr_fn)
+    lf = np.where(fixed, 1e6, 0.0)
+    leak = solve(z, domain, dx, none, z, z, [-0.004] * 20, sy_fn, tr_fn, leak_factor=lf, leak_head=canal)
+    assert np.allclose(leak, ref, atol=1e-3)
+
+
+def test_conjugate_gradients_match_the_direct_solve():
+    ny, nx, dx = 7, 9, 100.0
+    z = np.zeros((ny, nx))
+    domain = np.ones((ny, nx), bool)
+    fixed = np.zeros((ny, nx), bool)
+    fixed[:, 0] = True
+    lf = np.zeros((ny, nx))
+    lf[:, 4] = 12.0
+    t = PeatTable.named("tropical-large")
+    tr = lambda zeta, cells: t.trans(zeta, np.full(len(cells), 4.0))
+    kw = dict(leak_factor=lf, leak_head=np.full((ny, nx), -0.3))
+    a = solve(z, domain, dx, fixed, np.full((ny, nx), -0.5), z, [-0.004] * 30, t.sy, tr, **kw)
+    b = solve(z, domain, dx, fixed, np.full((ny, nx), -0.5), z, [-0.004] * 30, t.sy, tr, linear="cg", **kw)
+    assert np.allclose(a, b, atol=1e-8)

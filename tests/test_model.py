@@ -159,3 +159,36 @@ def test_a_block_reach_raises_the_canal_level_and_keeps_the_higher_one():
     target[2:5, :] = 0.1
     _, head2, _ = SIM.Boundary({"primary": 1.2}, 0.3, managed_target=target, canal_override=reach).heads(k)
     assert np.allclose(head2[2:5, 4], 5.0 - 0.1)                         # a managed level above the block level is kept
+
+
+def test_leaky_canal_cells_stay_free_and_the_store_falls_when_the_peat_dries():
+    k = small_khg()
+    length = {"primary": np.where(k.canal["primary"], k.dx, 0.0), "secondary": np.zeros(k.shape), "tertiary": np.zeros(k.shape)}
+    table = PeatTable.named("tropical-large")
+    n = 60
+    leak = SIM.Boundary({"primary": 0.3}, 0.3, leak_length=length)
+    r = SIM.run(k, np.full(n, -0.005), table, leak)
+    assert not r["fixed"].any() and r["leak"]["cells"].sum() == k.canal["primary"].sum()
+    assert np.nanmax(r["series"]["canal_in_mm"][:5]) < 0                       # the canal drains the saturated peat
+    store = SIM.Boundary({"primary": 0.3}, 0.3, leak_length=length, store=SIM.CanalStore({"primary": 8.0}, {"primary": 3.0}))
+    s = SIM.run(k, np.full(n, -0.005), table, store, rain_m_day=np.zeros(n), et_m_day=np.full(n, 0.005))
+    y = s["canal_stage"]["y_m"][:, 0]
+    assert y[-1] < -0.1 and np.all(np.diff(y[5:]) <= 1e-6)                     # no inflow: the canal falls below its sill and keeps falling
+    assert s["final_depth_m"][k.domain].mean() < r["final_depth_m"][k.domain].mean()   # and the peat dries further than with a fixed level
+    assert np.nanmax(np.abs(s["canal_stage"]["closure_m3"])) < 0.05 * s["canal_stage"]["area_m2"][0] * 0.005 * 10
+
+
+def test_community_and_canal_depth_checks():
+    assert FC.community_ok({"n": 6, "obs_level_cm": 29, "sim_level_cm": 44, "obs_drawdown_cm": 63, "sim_drawdown_cm": 12}) is False
+    assert FC.community_ok({"n": 6, "obs_level_cm": 29, "sim_level_cm": 40, "obs_drawdown_cm": 63, "sim_drawdown_cm": 50}) is True
+    assert FC.community_ok({"n": 2}) is None
+    assert FC.canal_depth_ok(0.5) is True and FC.canal_depth_ok(0.1) is False and FC.canal_depth_ok(float("nan")) is None
+
+
+def test_screen_drops_fragments_settling_days_and_stuck_runs():
+    idx = pd.to_datetime(["2026-07-21", "2026-07-22", "2026-07-23"]).append(pd.date_range("2026-08-11", periods=30))
+    v = np.r_[[50, 45, 45], np.linspace(-70, 60, 30)]
+    v[20:28] = 33.0                                                          # a stuck logger
+    out, n = FC.screen(pd.Series(v, idx))
+    assert n["short_piece"] == 3 and n["settling"] == 7 and n["stuck"] == 8
+    assert out.notna().sum() == 33 - 3 - 7 - 8
