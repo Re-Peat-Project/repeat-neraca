@@ -19,11 +19,13 @@ def dekad_index(d) -> np.ndarray:
     return (d.month.to_numpy() - 1) * 3 + np.minimum((d.day.to_numpy() - 1) // 10, 2)
 
 
-def history(kf: Path, last_year: int = 2025) -> pd.DataFrame:
+def history(kf: Path, last_year: int = 2025, dem: str | None = None) -> pd.DataFrame:
     """Pixel-weighted KHG mean rain `p` and ET `e` (mm per dekad), with the dekad of the year `d`."""
     d = Path(kf) / "03_neraca" / "inputs"
     if not (d / "balance_chirps_dekad.csv").exists():
         d = Path(kf) / "03_neraca" / "lidar" / "inputs"
+    if not (d / "balance_chirps_dekad.csv").exists() and dem:
+        d = Path(kf) / "03_neraca" / dem / "inputs"      # KHG without LiDAR: the variant's own sub-KHG balance
     out = {}
     for k, name in (("p", "chirps"), ("e", "mod16")):
         f = d / f"balance_{name}_dekad.csv"
@@ -51,9 +53,9 @@ def window_days(dates, first: int, k: int = DEKADS) -> np.ndarray:
     return ((dekad_index(dates) - first) % 36) < k
 
 
-def climate_cap(kf: Path, dates, p_mm, et_mm):
+def climate_cap(kf: Path, dates, p_mm, et_mm, dem: str | None = None):
     """(cap mm, window days, first dekad, mean shortfall of the window over the record) for a run with daily rain and ET in mm."""
-    first, mean = dry_window(history(kf))
+    first, mean = dry_window(history(kf, dem=dem))
     days = window_days(dates, first)
     cap = max(0.0, float((np.asarray(et_mm) - np.asarray(p_mm))[days].sum()))
     return cap, days, first, mean

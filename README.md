@@ -68,10 +68,8 @@ repeat-neraca-stations --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.
 repeat-neraca-run --config ../re-peat/sites/16.02.01_sugihan_lumpur/neraca.yaml --tier 1 --classes primary,secondary,tertiary \
     --out $REPEAT_KHG/16.02.01_sugihan_lumpur/03_neraca/runs/deficit
 
-# groundwater model (in development): baseline with managed land held at 0.4 m, then repeat-pump's blocks and pumping as scenarios
-C="--khg 15.05-07-10.01 --dem lidar --start 2025-11-01 --end 2026-10-01 --et mod16nrt --drawdown 1.2 --peat-base --depth-fallback bbsdlp --res 100 --peat-table tropical-large --managed-target 0.4 --fetch"
-repeat-neraca-model $C; repeat-neraca-model $C --blocks pump; repeat-neraca-model $C --blocks pump --supply pump
-python scripts/compare_scenarios.py --baseline <run folder> --scenario <run folder> ... --out docs/reports/scenarios_<khg>.md
+# groundwater model (in development): the recommended set-up for chosen KHG; see "Groundwater model: run it yourself"
+python scripts/run_model_batch.py --dem deltadtm --khg 14.10.01 15.05-07-10.01
 ```
 
 `--end` is the first day after the last complete dekad of the products used. A KHG without `02_delineation/subkhg_units.gpkg` runs as one unit (inputs in `inputs/khg_level/`, results in `runs/balance_khg_level/`). Options of the balance: `--et` (default `mod16,wapor`, the first is central), `--rain-mode` (default `khg`; `unit` keeps rain per sub-KHG). `scripts/run_neraca.py` is the same as `repeat-neraca-run`. `repeat-neraca-stations` also takes `--kinds concession,community`, `--min-coverage` (community records start in late July 2026, so 0.3 keeps them) and `--out`; the groundwater model reads its own station export from `03_neraca/inputs/model/` when there is one. Options of the groundwater model: `repeat-neraca-model --help` and the report, sections 3 and 9.
@@ -84,6 +82,59 @@ python scripts/compare_scenarios.py --baseline <run folder> --scenario <run fold
 | `repeat-neraca-map` | `repeat_neraca.maps` | map layers of one KHG: balance per sub-KHG, SiTMAT stations |
 | `repeat-neraca-model` | `repeat_neraca.model` | groundwater model of a KHG from its code: daily water table on a grid; managed land held at a target (`--managed-target`); block and pumping scenarios from repeat-pump (`--blocks pump`, `--supply pump`); season maps and a table per sub-KHG; scored against stations and field points. In development: method, decisions and results in [docs/groundwater-model-report.md](docs/groundwater-model-report.md) |
 | `repeat-neraca-run` | `repeat_neraca.run` | KHG deficit, and the groundwater model tiers 1 and 2 ([docs/physical-model.md](docs/physical-model.md)) |
+
+## Groundwater model: run it yourself
+
+The groundwater model (`repeat-neraca-model`, package `repeat_neraca.groundwater`) simulates the daily water table of a KHG on a grid and the effect of canal blocks and pumping. It is in development: the maps are indicative, and the station check passes only where stations exist outside managed land. Method, decisions D1 to D25 and results: [docs/groundwater-model-report.md](docs/groundwater-model-report.md).
+
+**1. Mandatory input data.** Everything is read from the KHG work folder `$REPEAT_KHG/<code>_<name>/` (`repeat_common.khg.folder`). The chain runner `re-peat/tools/khg_pipeline.py` makes it (steps `local_inputs`, `dem_inputs`, `dem_correction`, `delineation`). The model stops with a message when a mandatory file is missing.
+
+| Input | File | Made by | Mandatory |
+|---|---|---|---|
+| KHG boundary | `00_inputs/khg.gpkg` | `local_inputs` | yes |
+| Canals by class | `00_inputs/canals.gpkg` (field `KET_KANAL`: Kanal Primer, Sekunder, Tersier) | `local_inputs` | yes |
+| Peat depth | `00_inputs/peat_depth.tif` (unit scale `peat_depth.scale` in `re-peat/sites/<khg>/khg.yaml`, default 0.01 for cm) | `local_inputs` | yes: a KHG with neither a depth raster nor BBSDLP depth classes cannot run |
+| Peat depth, gaps | `00_inputs/national/kedalaman_gambut_bbsdlp.gpkg` (`--depth-fallback bbsdlp`), then the KHG median | `local_inputs` | no |
+| DTM | `lidar`: the clip named in `khg.yaml`; `deltadtm`, `demnas`: `01_dem/processed/<dem>/dtm_smooth.tif`; for `deltadtm` also the raw clip `01_dem/inputs/deltadtm.tif` | `dem_inputs`, `dem_correction` | yes, one variant (`--dem`) |
+| Rain and ET, KHG mean | `03_neraca/inputs/model/balance_<product>_dekad.csv` | fetched by `--fetch` (Earth Engine, cached; needs `earthengine authenticate` and `EE_PROJECT`) | yes; use `--et mod16nrt` for dates after 2025-12 |
+| Managed land | `00_inputs/national/izin_usaha_2025.gpkg` (written from `$REPEAT_DATA/landstatus/` on first use) | the model | for `--managed-target` |
+| Existing canal blocks | `00_inputs/blocks.gpkg` (BRGM Sekat Kanal points) | `local_inputs` | no (`--existing-blocks none`) |
+| Sub-KHG units | `02_delineation/<dem>/subkhg_units.gpkg` | `delineation` | no: without it the unit table has one row |
+| Dry window of the supply cap | `03_neraca/<dem>/inputs/balance_chirps_dekad.csv` and `balance_mod16_dekad.csv`, 2018 onwards | `repeat-neraca-batch`, or `repeat_common.fetch_gee_balance` | for `--supply-cap climate` |
+| Stations, field points | `03_neraca/inputs/model/stations*.csv` (`repeat-neraca-stations`), `00_inputs/field_wtd.csv` (`repeat_neraca.groundwater.fieldobs`) | | no: without them the checks read "not testable" |
+| Interventions | `05_pump/<dem>/<khg>.gpkg`, layers `sekat_reach` and `interventions` (repeat-pump) | `pump` | only for `--blocks pump` and `--supply pump` |
+
+Environment variables: `REPEAT_KHG`, `REPEAT_DATA`, `REPEAT_HUB`, `EE_PROJECT`, and `SITMAT_PROCESSED` when stations are used (table under "Install").
+
+**2. Run one KHG or a list.** `scripts/run_model_batch.py` runs the recommended set-up for the KHG folders in `$REPEAT_KHG`, or for the codes given. A KHG whose run folder already holds `model_report.md` is skipped (`--force` reruns), so an interrupted batch resumes.
+
+```bash
+python scripts/run_model_batch.py --dem deltadtm --dry-run                        # list the KHG and grids
+python scripts/run_model_batch.py --dem deltadtm --khg 14.10.01 15.05-07-10.01    # chosen KHG
+python scripts/run_model_batch.py --dem deltadtm --workers 2                      # every KHG folder
+```
+
+The set-up (D21, D24, D22): canals inside cells at 0.80 / 0.32 / 0.24 m below the land (primary, secondary, tertiary), existing blocks, managed land held at 0.4 m (PP 57/2016) with the supply capped at the KHG's own dry-season shortfall (`--supply-cap climate`), peat base, BBSDLP depth fallback, ET `mod16nrt`, screened stations, window 2025-11-01 to 2026-10-01. The grid is 100 m up to 250,000 ha and 200 m above. Results go to `03_neraca/<dem>/runs/model/d22_climate_2026/`, logs to `logs/model_<dem>_d22_climate_2026.log`, and the batch writes `$REPEAT_KHG/model_batch_<dem>_<run>.csv`. The same run for one KHG, written out:
+
+```bash
+repeat-neraca-model --khg 15.05-07-10.01 --dem deltadtm --start 2025-11-01 --end 2026-10-01 --res 100 --run d22_climate_2026 \
+    --peat-table tropical-large --drawdown primary=0.8,secondary=0.32,tertiary=0.24 --managed-target 0.4 --peat-base \
+    --depth-fallback bbsdlp --et mod16nrt --canal-cells leak --screen-stations --supply-cap climate --fetch
+```
+
+**3. What the supply cap does.** Managed land is topped up to its target each day until a cell has received the cap. After that it falls with the water table. With `--supply-cap climate` the cap is the shortfall of the run year (ET minus rain, floored at 0) over the KHG's dry window: the 14 dekads of the year with the largest mean shortfall in 2018-2025. The maps, the unit table and the supply are reported over that window (D25). `--season` overrides it, and without the cap the season is 1 June to 30 September. A cap of 0 mm means rain exceeded ET over the window in the run year, so no water was added. `--supply-cap deficit` takes the cap from the station-based deficit, and a number gives a cap in mm.
+
+**4. Outputs.** `03_neraca/<dem>/runs/model/<run>/` (table under "Outputs"). The maps to open in QGIS are `model_season_mean_depth.tif` (cm below the surface, positive down), `model_season_days_deeper_40cm.tif` (days of the season; open land only) and `model_season_managed_supply.tif` (mm). `model_units.csv` has one row per sub-KHG. `model_report.md` lists the source of every input and the station gate.
+
+**5. Intervention scenarios.** Run the baseline, then the same command with `--blocks pump` (the blocks of repeat-pump's `sekat_reach`) and with `--blocks pump --supply pump` (land that repeat-pump marks for water, held at `--supply-target`). Compare them:
+
+```bash
+python scripts/compare_scenarios.py --baseline <baseline run folder> --scenario <blocks run folder> <blocks and pumping run folder> --out docs/reports/scenarios_<khg>.md
+```
+
+Each scenario run writes `days_deeper_40cm_change.tif` (days, scenario minus baseline; negative is wetter), and the report gives the change by distance from a block reach and per sub-KHG. A block scenario needs the baseline canal level that repeat-pump assumes (1.0 m, `sekat.balance_drawdown_m`; the report's example uses 1.2 m). Otherwise blocks that hold water shallower than the canals raise nothing.
+
+**6. Reading the result.** Treat the maps as indicative: the model is in development, managed land is held at an assumed target, and the station gates are testable only where stations lie outside managed land (`station_scores.json`, `gate`). Peat depth, the DTM and the canal levels limit it most; see the report's limitations.
 
 ## Inputs
 
@@ -135,7 +186,7 @@ Groundwater model runs (`repeat-neraca-model`) write to `03_neraca/<dem>/runs/mo
 |---|---|
 | `model_series.csv` | per day: P, ET, KHG-mean depth, share deeper than 40 cm, water from canals and the edge, ET share, open-land depth, water supplied to managed land (mm, m3) |
 | `model_units.csv` | per sub-KHG (or the KHG): open and managed area, the season's open-land depth and days deeper than 40 cm, managed supply |
-| `model_season_days_deeper_40cm.tif`, `model_season_mean_depth.tif`, `model_season_managed_supply.tif` | season maps (June to September by default, `--season`); the days map covers open land only |
+| `model_season_days_deeper_40cm.tif`, `model_season_mean_depth.tif`, `model_season_managed_supply.tif` | season maps (June to September by default, the dry window with `--supply-cap climate`, or `--season`); the days map covers open land only |
 | `model_depth_window.tif`, `model_depth_end.tif`, `model_managed_target.tif` | depth over the field window and on the last day; target of held land |
 | `station_scores.json`, `station_scores.csv`, `station_sim_daily.csv` | scores against SiTMAT stations and the gate; simulated daily depth at the stations |
 | `field_scores.json`, `field_points.csv` | scores against field points (`00_inputs/field_wtd.csv`) |

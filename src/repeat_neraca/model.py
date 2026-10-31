@@ -317,7 +317,9 @@ def main(argv=None):
                     help="hold managed land at a target water table: metres below the surface (e.g. 0.4, PP 57/2016), or 'stations-loo' (each "
                          "licence's target = median level of the concession stations outside it; calibrated, leave-one-concession-out)")
     ap.add_argument("--peat-base", action="store_true", help="no ET from a cell whose water table is below the peat base")
-    ap.add_argument("--season", default="06-01,09-30", help="season of the per-cell maps and the unit table (month-day,month-day), in the last year of the run")
+    ap.add_argument("--season", default=None, help="season of the per-cell maps and the unit table (month-day,month-day), in the last year of the run "
+                    "(default 06-01,09-30; with --supply-cap climate, the KHG's dry window, so the supply and the days deeper than 40 cm are reported "
+                    "over the period the cap acts in)")
     ap.add_argument("--depth-fallback", choices=["none", "bbsdlp"], default="none",
                     help="fill peat-depth raster gaps cell by cell from the BBSDLP 1:50k depth classes (00_inputs/national), then the median")
     ap.add_argument("--blocks", default="none",
@@ -449,7 +451,8 @@ def main(argv=None):
     rows = np.concatenate([[] if pts is None else pts.row.values, [] if stn is None else stn.row.values]).astype(int)
     cols = np.concatenate([[] if pts is None else pts.col.values, [] if stn is None else stn.col.values]).astype(int)
     stress = None if a.et_stress == "none" else ((-0.70, -1.82) if a.et_stress == "natural" else (float(reg["et_stress_start"]), float(reg["et_stress_end"])))
-    s0, s1 = (pd.Timestamp(f"{dates[-1].year}-{x}") for x in a.season.split(","))
+    season_default = a.season is None
+    s0, s1 = (pd.Timestamp(f"{dates[-1].year}-{x}") for x in (a.season or "06-01,09-30").split(","))
     season = (dates >= s0) & (dates <= s1)
     cap_mm, cap_days = None, None
     if a.supply_cap:
@@ -461,13 +464,22 @@ def main(argv=None):
             cap_mm, cap_days = float(dk0.deficit_mm), np.asarray((dates >= pd.Timestamp(dk0.period_start)) & (dates <= pd.Timestamp(dk0.period_end)))
         elif a.supply_cap == "climate":
             from repeat_neraca.supply_rule import climate_cap
-            cap_mm, cap_days, w0, wmean = climate_cap(kf, dates, f.P_mm.values, f.ET_mm.values)
+            cap_mm, cap_days, w0, wmean = climate_cap(kf, dates, f.P_mm.values, f.ET_mm.values, a.dem)
             log(f"dry window from the 2018-2025 record: 14 dekads from dekad {w0 + 1} of 36, mean shortfall {wmean:.0f} mm")
+            if season_default:                                       # report over the days the cap acts in (D25)
+                season = np.asarray(cap_days, bool)
         else:
             cap_mm, cap_days = float(a.supply_cap), season
         if not np.asarray(cap_days).any():
             raise SystemExit("--supply-cap: the cap window has no days inside the run")
         log(f"supply cap {cap_mm:.0f} mm per managed cell over {int(np.asarray(cap_days).sum())} days")
+    if season_default:
+        if a.supply_cap == "climate" and season.any():
+            d_in = dates[season]
+            a.season = f"{d_in.min():%Y-%m-%d} to {d_in.max():%Y-%m-%d} (dry window of the cap)"
+            log(f"season of the maps and the unit table: {a.season}")
+        else:
+            a.season = "06-01,09-30"
     r = SIM.run(khg, net, table, b, a.h0, points=(rows, cols) if len(rows) else None, keep_days=window, log=log, season_days=season,
                 rain_m_day=f.P_mm.values / 1000.0, et_m_day=f.ET_mm.values / 1000.0, et_stress=stress, peat_base=a.peat_base,
                 log_ponding=a.log_ponding, supply_cap_mm=cap_mm, supply_cap_days=cap_days)
