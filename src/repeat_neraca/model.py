@@ -499,6 +499,7 @@ def main(argv=None):
     write_tif(out / "model_depth_end.tif", -100 * r["final_depth_m"], khg)
     open_cells = khg.domain & ~r["fixed"] & (~r["held"] if r["held"] is not None else True)
     write_tif(out / "model_season_days_deeper_40cm.tif", np.where(open_cells, r["season_days_deeper_0_4"], np.nan), khg)   # managed and canal cells left out
+    write_tif(out / "model_season_days_deeper_40cm_all.tif", np.where(khg.domain & ~r["fixed"], r["season_days_deeper_0_4"], np.nan), khg)   # managed land kept; canal and edge cells left out
     write_tif(out / "model_season_mean_depth.tif", -100 * r["season_mean_depth_m"], khg)
     if r["held"] is not None:
         write_tif(out / "model_season_managed_supply.tif", np.where(r["held"], r["season_supply_mm"], np.nan), khg)
