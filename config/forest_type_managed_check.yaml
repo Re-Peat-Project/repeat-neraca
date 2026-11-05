@@ -1,0 +1,26 @@
+# Is there managed (drained) land outside the licences that the groundwater model leaves unmanaged?
+# Run: python scripts/check_forest_type_managed.py config/forest_type_managed_check.yaml
+# Written 2026-11-04, before any result.
+#
+# The groundwater model treats only licence polygons as managed land (repeat_neraca.model.MANAGED_LICENCES: PBPH and
+# Perkebunan Kelapa Sawit, 2025 business licences). The report names land outside licences as the weak part (community
+# stations at Mendahara-Batanghari). ForTy 2020 v1 (Google DeepMind / WRI / IIASA, 10 m; repeat_common.fetch_forest_type)
+# maps tree crops (oil palm, rubber) and plantation forest (acacia) wherever they are, licensed or not.
+khg:
+  - folder: 15.05-07-10.01_mendahara_batanghari
+    name: KHG Sungai Mendahara - Sungai Batanghari
+    run: lidar/runs/model/imp_a_baseline_screened        # D21 set-up, screened stations (report section 6.15)
+  - folder: 16.02.01_sugihan_lumpur
+    name: KHG Sungai Sugihan - Sungai Lumpur
+    run: null                                             # concession stations only; area count only
+forty: forest_type/forty_2020_v1_{slug}.tif               # in REPEAT_DATA
+managed_classes: [plantation, tree_crop]                  # ForTy classes taken as managed (drained) land
+station_buffer_m: [100, 250]
+
+# Reading, written before any result (descriptive: 8 community stations is too few for a test):
+# 1. Area: report the share of the KHG outside managed licences that ForTy calls tree crops or plantation forest. If it is
+#    above 10% of the KHG, unlicensed managed land is large enough to matter for the KHG water balance.
+# 2. Stations: community stations whose 250 m surroundings are at least half tree crops or plantation are expected to look
+#    like managed land: shallower than the model (simulated minus observed mean depth > 0) and flatter. If their median
+#    simulated-minus-observed depth exceeds that of the other community stations by more than 10 cm, that supports
+#    treating ForTy managed land outside licences as managed in the model (a later, separate model run).

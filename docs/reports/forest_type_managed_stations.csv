@@ -1,0 +1,21 @@
+khg,station_id,group,managed_in_model,flag,obs_cm,sim_cm,sim_minus_obs_cm,obs_drawdown_cm,sim_drawdown_cm,primary_100m,nat_regen_100m,planted_100m,plantation_100m,tree_crop_100m,other_100m,managed_share_100m,primary_250m,nat_regen_250m,planted_250m,plantation_250m,tree_crop_250m,other_250m,managed_share_250m
+KHG Sungai Mendahara - Sungai Batanghari,community/MTI-09UUOAFNM0BM,community,False,,13.46,35.66,22.2,-1.25,-1.2,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.08,0.92,0.08
+KHG Sungai Mendahara - Sungai Batanghari,community/MTI-AIF4R20B0UXP,community,False,,34.59,36.05,1.46,8.64,2.27,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0
+KHG Sungai Mendahara - Sungai Batanghari,community/MTI-GAFOS2MB0AFM,community,False,,44.18,50.46,6.28,1.32,2.94,0.0,0.0,0.0,0.0,0.54,0.46,0.54,0.0,0.0,0.0,0.0,0.48,0.52,0.48
+KHG Sungai Mendahara - Sungai Batanghari,community/MTI-GEWNOIDO5DCD,community,False,,14.83,32.83,18.0,3.47,0.19,0.0,0.0,0.0,0.0,1.0,0.0,1.0,0.0,0.01,0.0,0.0,0.87,0.12,0.87
+KHG Sungai Mendahara - Sungai Batanghari,community/MTI-LOGH9IGBECTN,community,False,,43.72,63.92,20.2,2.58,27.71,0.0,0.0,0.0,1.0,0.0,0.0,1.0,0.26,0.0,0.0,0.7,0.0,0.05,0.7
+KHG Sungai Mendahara - Sungai Batanghari,community/MTI-PRA21WW1DJ1W,community,False,,20.57,42.05,21.48,37.99,4.39,0.0,0.0,0.0,0.0,0.13,0.87,0.13,0.0,0.0,0.0,0.0,0.26,0.74,0.26
+KHG Sungai Mendahara - Sungai Batanghari,community/MTI-PXQSI2UWZ5DP,community,False,,55.8,45.74,-10.06,20.95,23.88,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0
+KHG Sungai Mendahara - Sungai Batanghari,community/MTI-QV87GTD7GYA8,community,False,,68.03,55.16,-12.87,18.51,2.68,0.0,0.93,0.0,0.0,0.0,0.07,0.0,0.0,0.54,0.0,0.0,0.02,0.44,0.02
+KHG Sungai Mendahara - Sungai Batanghari,concession/11_MAJI:TP-111,11_MAJI,True,in_managed_land,16.45,27.87,11.42,55.29,13.25,0.0,0.0,0.0,0.0,1.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,1.0
+KHG Sungai Mendahara - Sungai Batanghari,concession/24_WKS:WKD7006,24_WKS,True,on_fixed_cell,38.24,40.0,1.76,1.14,0.0,0.0,0.0,0.0,1.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0,0.0,0.0,1.0
+KHG Sungai Mendahara - Sungai Batanghari,concession/24_WKS:WKD7028,24_WKS,True,on_fixed_cell,37.68,40.0,2.32,5.57,0.0,0.0,0.0,0.0,1.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0,0.0,0.0,1.0
+KHG Sungai Mendahara - Sungai Batanghari,concession/24_WKS:WKD7077,24_WKS,True,in_managed_land,38.4,11.62,-26.78,1.86,27.04,0.0,0.0,0.0,1.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0,0.0,0.0,1.0
+KHG Sungai Mendahara - Sungai Batanghari,concession/24_WKS:WKD7094,24_WKS,True,in_managed_land,37.05,12.19,-24.86,9.14,25.71,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.01,0.0,0.99,0.01
+KHG Sungai Mendahara - Sungai Batanghari,concession/24_WKS:WKD7095,24_WKS,True,on_fixed_cell,38.07,40.0,1.93,1.14,0.0,0.0,0.0,0.0,1.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0,0.0,0.0,1.0
+KHG Sungai Mendahara - Sungai Batanghari,concession/24_WKS:WKD7117,24_WKS,True,in_managed_land,37.38,11.26,-26.12,4.86,26.7,0.0,0.0,0.0,0.73,0.0,0.27,0.73,0.0,0.0,0.0,0.76,0.0,0.24,0.76
+KHG Sungai Mendahara - Sungai Batanghari,concession/24_WKS:WKD7118,24_WKS,True,in_managed_land,36.78,10.64,-26.14,2.86,27.01,0.0,0.0,0.0,1.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0,0.0,0.0,1.0
+KHG Sungai Mendahara - Sungai Batanghari,concession/254_EWFKT:C12,254_EWFKT,True,on_fixed_cell,50.04,40.0,-10.04,28.29,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0
+KHG Sungai Mendahara - Sungai Batanghari,concession/293_KUL:TP-126,293_KUL,True,in_managed_land,24.04,33.07,9.03,0.57,7.77,0.0,0.0,0.0,0.0,1.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,1.0
+KHG Sungai Mendahara - Sungai Batanghari,concession/293_KUL:TP-58,293_KUL,True,in_managed_land,27.93,24.26,-3.67,23.43,23.87,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.21,0.79,0.21
+KHG Sungai Mendahara - Sungai Batanghari,concession/335_EWFSM:TMAT-02,335_EWFSM,False,,47.47,29.56,-17.91,23.0,57.47,0.0,0.0,0.0,0.0,0.08,0.92,0.08,0.0,0.0,0.0,0.0,0.18,0.82,0.18

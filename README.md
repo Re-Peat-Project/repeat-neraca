@@ -225,7 +225,8 @@ src/repeat_neraca/
 config/neraca/                   example.yaml (site config template; real ones in re-peat/sites/<khg>/neraca.yaml)
 scripts/                         checks against data (check_*.py, reproduce_2021.py), run_neraca.py, benchmark_urzainki2020.py,
                                  registry_table.py; groundwater model: model_sweep.py, check_field_inputs.py, rank_station_sites.py,
-                                 summarise_model_runs.py, compare_scenarios.py
+                                 summarise_model_runs.py, compare_scenarios.py, check_forest_type_managed.py (ForTy managed land
+                                 outside licences, config/forest_type_managed_check.yaml)
 tests/                           pytest
 ```
 

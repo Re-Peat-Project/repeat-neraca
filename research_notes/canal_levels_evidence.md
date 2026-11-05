@@ -109,3 +109,7 @@ Not found or not checked: a Dadap et al. paper on canal block effects (only the 
 - Supports: Hooijer 2024 (−0.41 m mean, retired blocked plantation); Vernimmen & Hooijer 2026 low-elevation plantations (about −0.2 m); RSPO target 40 to 60 cm.
 - Contradicts: Evans 2019 (70 ± 17 cm, almost all sites at 40 cm or deeper), Hooijer 2012 (0.70 to 0.73 m), Vernimmen & Hooijer 2026 (−0.6 to −0.85 m above 5 m elevation, 2018 to 2025).
 - Unknown: any analysis of SiMATAG compliance-point data; why our station data read shallower than the published means.
+
+## See also
+
+- Canal maps from imagery (Dadap et al. 2021 regional map, licence CC BY-ND 3.0; Haidar & Takeuchi 2022 U-Net; PALSAR-2 detectors): `repeat-pump/docs/canal_mapping_sources.md` (2026-11-05).
