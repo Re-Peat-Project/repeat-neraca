@@ -107,3 +107,11 @@ def test_too_few_readings_still_stops_even_with_an_assumed_drop():
 def test_files_without_the_column_count_as_observed():
     assert not is_assumed(pd.Series({"deficit_mm": 100.0}))
     assert is_assumed(pd.Series({"water_table_source": "assumed"}))
+
+
+def test_config_mistakes_give_a_clear_message():
+    f, _ = _case()
+    with pytest.raises(ValueError, match="number of cm or `observed`"):
+        khg_deficit(f, None, 100.0, "X", {"dz_no_obs_cm": "observe"})          # typo
+    with pytest.raises(ValueError, match=r"\[low, high\]"):
+        khg_deficit(f, None, 100.0, "X", {"dz_no_obs_cm": 5.0, "dz_no_obs_band_cm": [2.0]})

@@ -57,8 +57,15 @@ def assumed_dz(c: dict) -> tuple[float, list[float]] | None:
         return None
     if v == "observed":
         obs = list(OBSERVED_DZ_CM.values())
+        if not obs:
+            raise ValueError("dz_no_obs_cm is `observed` but OBSERVED_DZ_CM holds no measured drop")
         v, band = float(np.median(obs)), band or [min(obs), max(obs)]
-    v = float(v)
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        raise ValueError(f"dz_no_obs_cm must be a number of cm or `observed`, got {v!r}") from None
+    if band is not None and (not isinstance(band, (list, tuple)) or len(band) != 2):
+        raise ValueError(f"dz_no_obs_band_cm must be [low, high] in cm, got {band!r}")
     lo, hi = (float(x) for x in (band or [v, v]))
     if not lo <= v <= hi:
         raise ValueError(f"dz_no_obs_cm {v:g} lies outside dz_no_obs_band_cm [{lo:g}, {hi:g}]")
