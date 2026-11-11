@@ -18,6 +18,10 @@ Choices (agreed 2026-10-20):
            WaPOR is no longer a bound by default (`wapor_bound`): it runs 20-30 % below the eddy-covariance range, and the cached
            2026 values were superseded upstream for six dekads.
   band     deficit_mm_low and deficit_mm_high are the smallest and largest deficit over Sy 0.10, 0.15, 0.20 (and WaPOR if wapor_bound).
+  no TMAT  the stations are optional. With no station, or too few observed days for the change over the window, dz is the assumed
+           drop dz_no_obs_cm (1 cm by default), so Sy is still subtracted: deficit_mm = max(0, -sum(P - E) - Sy * dz_no_obs_cm * 10),
+           and the Sy band still applies. Such a row has water_table_source "assumed (dz = <value> cm)", n_stations 0 and empty observed
+           depths; obs_change_cm holds the assumed dz. With require_obs (config `deficit: {require_obs: true}`) it stops instead.
 """
 from __future__ import annotations
 
@@ -25,11 +29,11 @@ import numpy as np
 import pandas as pd
 
 DEFAULTS = {"start": "06-01", "end": "10-31", "sy": 0.15, "sy_band": [0.10, 0.20], "edge_days": 7, "min_station_coverage": 0.5,
-            "wapor_bound": False}
+            "wapor_bound": False, "require_obs": False, "dz_no_obs_cm": 1.0}
 
 COLUMNS = ["khg_id", "period_start", "period_end", "n_days", "valid_day_share", "n_stations", "area_km2", "sy", "net_balance_mm",
            "obs_depth_start_cm", "obs_depth_end_cm", "obs_change_cm", "storage_change_mm", "deficit_mm", "deficit_mm_low",
-           "deficit_mm_high", "deficit_m3", "deficit_months", "evaporation_source", "e_wapor_covers_period", "method"]
+           "deficit_mm_high", "deficit_m3", "deficit_months", "evaporation_source", "e_wapor_covers_period", "water_table_source", "method"]
 
 
 def _deficit(net_mm: float, dz_cm: float, sy: float) -> float:
@@ -39,7 +43,8 @@ def _deficit(net_mm: float, dz_cm: float, sy: float) -> float:
 def khg_deficit(forcing: pd.DataFrame, obs: pd.DataFrame, area_km2: float, khg_id: str, cfg: dict | None = None) -> dict:
     """One row of neraca_khg.csv (see COLUMNS).
 
-    forcing: date, P_era5_mm, E_era5_mm, optionally E_wapor_mm. obs: stations in columns, dates in the index, depth in cm (positive down).
+    forcing: date, P_era5_mm, E_era5_mm, optionally E_wapor_mm. obs: stations in columns, dates in the index, depth in cm (positive down);
+    None or an empty frame when the KHG has no TMAT station (then dz = dz_no_obs_cm, see the module notes).
     """
     c = {**DEFAULTS, **(cfg or {})}
     f = forcing.copy()
@@ -56,15 +61,20 @@ def khg_deficit(forcing: pd.DataFrame, obs: pd.DataFrame, area_km2: float, khg_i
     wv = w[valid]
     net = float((wv["P_era5_mm"] - wv["E_era5_mm"]).sum())
 
-    o = obs.reindex(w.index)
+    o = obs.reindex(w.index) if obs is not None else pd.DataFrame(index=w.index)
     cover = o.notna().mean()
     o = o.loc[:, cover >= float(c["min_station_coverage"])]
     mean_o = o.mean(axis=1).dropna()
-    if len(mean_o) < 2 * int(c["edge_days"]):
-        raise ValueError("too few observed days to get the water table change over the window")
     k = int(c["edge_days"])
-    z0, z1 = float(mean_o.iloc[:k].mean()), float(mean_o.iloc[-k:].mean())
-    dz = z1 - z0
+    has_obs = len(mean_o) >= 2 * k
+    if has_obs:
+        z0, z1 = float(mean_o.iloc[:k].mean()), float(mean_o.iloc[-k:].mean())
+        dz = z1 - z0
+    elif c["require_obs"]:
+        raise ValueError("too few observed days to get the water table change over the window")
+    else:                                   # no TMAT: an assumed drop, so the storage term Sy * dz is still subtracted
+        z0 = z1 = float("nan")
+        dz = float(c["dz_no_obs_cm"])
 
     sy = float(c["sy"])
     variants = [_deficit(net, dz, s) for s in {sy, *map(float, c["sy_band"])}]
@@ -75,9 +85,11 @@ def khg_deficit(forcing: pd.DataFrame, obs: pd.DataFrame, area_km2: float, khg_i
     central = _deficit(net, dz, sy)
     month_net = (wv["P_era5_mm"] - wv["E_era5_mm"]).groupby(wv.index.month).sum()
     return {"khg_id": str(khg_id), "period_start": start.date().isoformat(), "period_end": last.date().isoformat(),
-            "n_days": int(valid.sum()), "valid_day_share": float(valid.mean()), "n_stations": int(o.shape[1]),
+            "n_days": int(valid.sum()), "valid_day_share": float(valid.mean()), "n_stations": int(o.shape[1]) if has_obs else 0,
             "area_km2": float(area_km2), "sy": sy, "net_balance_mm": net, "obs_depth_start_cm": z0, "obs_depth_end_cm": z1,
             "obs_change_cm": dz, "storage_change_mm": sy * dz * 10.0, "deficit_mm": central, "deficit_mm_low": float(min(variants)),
             "deficit_mm_high": float(max(variants)), "deficit_m3": central / 1000.0 * area_km2 * 1e6,
             "deficit_months": int((month_net < 0).sum()), "evaporation_source": "ERA5", "e_wapor_covers_period": wapor_ok,
-            "method": "max(0, -sum(P-E) - Sy*dz_obs); ERA5 P and E; Sy 0.15, band 0.10-0.20" + ("; WaPOR bound" if c["wapor_bound"] else "")}
+            "water_table_source": "stations" if has_obs else f"assumed (dz = {dz:g} cm)",
+            "method": "max(0, -sum(P-E) - Sy*dz_obs); ERA5 P and E; Sy 0.15, band 0.10-0.20" + ("; WaPOR bound" if c["wapor_bound"] else "")
+                      + ("" if has_obs else f"; no TMAT stations: dz assumed {dz:g} cm")}

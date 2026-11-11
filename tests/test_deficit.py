@@ -60,3 +60,20 @@ def test_stops_without_forcing_in_the_window():
     f["P_era5_mm"] = np.nan
     with pytest.raises(ValueError):
         khg_deficit(f, obs, 10.0, "X")
+
+
+def test_without_tmat_dz_is_assumed_and_sy_is_still_subtracted():
+    f, obs = _case()                                                    # -100 mm; with stations (dz 10 cm) the deficit is 85 mm
+    for o in (None, obs.iloc[:, :0], obs * np.nan):                     # no frame, no station, stations without readings
+        r = khg_deficit(f, o, 100.0, "X")                               # dz 1 cm: 0.15 * 1 * 10 = 1.5 mm of storage
+        assert r["deficit_mm"] == pytest.approx(98.5) and r["storage_change_mm"] == pytest.approx(1.5) and r["sy"] == 0.15
+        assert r["deficit_mm_low"] == pytest.approx(98.0) and r["deficit_mm_high"] == pytest.approx(99.0)
+        assert r["n_stations"] == 0 and r["obs_change_cm"] == 1.0 and r["water_table_source"] == "assumed (dz = 1 cm)"
+    assert khg_deficit(f, None, 100.0, "X", {"dz_no_obs_cm": 10.0})["deficit_mm"] == pytest.approx(85.0)
+    assert khg_deficit(f, obs, 100.0, "X")["water_table_source"] == "stations"
+
+
+def test_require_obs_stops_without_tmat():
+    f, _ = _case()
+    with pytest.raises(ValueError):
+        khg_deficit(f, None, 100.0, "X", {"require_obs": True})
