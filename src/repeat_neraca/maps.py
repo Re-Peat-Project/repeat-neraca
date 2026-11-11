@@ -23,6 +23,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from repeat_neraca import deficit as DEF
+
 DRY_MONTHS = (7, 8, 9, 10)
 TMA_LIMIT_CM = 40
 
@@ -87,6 +89,7 @@ def write_map(kf: Path, dem: str | None = None) -> Path:
         d = pd.read_csv(deficit).iloc[0]
         g["khg_deficit_mm"] = float(d["deficit_mm"])
         g["khg_deficit_window"] = f"{d['period_start']} to {d['period_end']}"
+        g["khg_deficit_source"] = "assumed dz" if DEF.is_assumed(d) else "stations"
         window = (d["period_start"], d["period_end"])
     out = unit_csv.parent / "neraca_map.gpkg"
     if out.exists():

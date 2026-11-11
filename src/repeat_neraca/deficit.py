@@ -18,10 +18,14 @@ Choices (agreed 2026-10-20):
            WaPOR is no longer a bound by default (`wapor_bound`): it runs 20-30 % below the eddy-covariance range, and the cached
            2026 values were superseded upstream for six dekads.
   band     deficit_mm_low and deficit_mm_high are the smallest and largest deficit over Sy 0.10, 0.15, 0.20 (and WaPOR if wapor_bound).
-  no TMAT  the stations are optional. With no station, or too few observed days for the change over the window, dz is the assumed
-           drop dz_no_obs_cm (1 cm by default), so Sy is still subtracted: deficit_mm = max(0, -sum(P - E) - Sy * dz_no_obs_cm * 10),
-           and the Sy band still applies. Such a row has water_table_source "assumed (dz = <value> cm)", n_stations 0 and empty observed
-           depths; obs_change_cm holds the assumed dz. With require_obs (config `deficit: {require_obs: true}`) it stops instead.
+  no TMAT  a KHG with no water-table reading in the window can still get a deficit, but only when its config asks for one: dz is
+           then assumed, not observed. `dz_no_obs_cm` is null by default, and the KHG stops as before. A number is the assumed drop
+           (cm); `observed` takes the drops measured at the KHG with stations (OBSERVED_DZ_CM: median 9.35 cm, band 2.8 to 22.2 cm),
+           and `dz_no_obs_band_cm` [low, high] sets or overrides the band. deficit_mm uses the central dz; deficit_mm_low and
+           deficit_mm_high run over the dz band and the Sy band together. Such a row has water_table_source "assumed", n_stations 0,
+           dz_assumed_cm filled and the observed columns (obs_depth_*, obs_change_cm) empty. A KHG whose stations have readings in the
+           window but too few for the change still stops (lower `min_station_coverage` instead): the assumption never replaces data
+           silently. Read the source before using the deficit as a measured value (`is_assumed`).
 """
 from __future__ import annotations
 
@@ -29,15 +33,42 @@ import numpy as np
 import pandas as pd
 
 DEFAULTS = {"start": "06-01", "end": "10-31", "sy": 0.15, "sy_band": [0.10, 0.20], "edge_days": 7, "min_station_coverage": 0.5,
-            "wapor_bound": False, "require_obs": False, "dz_no_obs_cm": 1.0}
+            "wapor_bound": False, "dz_no_obs_cm": None, "dz_no_obs_band_cm": None}
+
+# Water-table drop over the deficit window (cm, positive = deeper) at the KHG with SiTMAT stations, 2026 (runs/deficit/neraca_khg.csv,
+# collected 2026-11-10). `dz_no_obs_cm: observed` takes their median and range for a KHG without stations.
+OBSERVED_DZ_CM = {"Air Hitam Laut-Buntu Kecil": 2.8, "Mendahara-Batanghari": 22.2, "Sugihan-Lumpur": 11.0, "Pungurbesar-Kapuas": 20.5,
+                  "Kapuas-Barito": 3.7, "Kahayan-Sebangau": 7.7}
 
 COLUMNS = ["khg_id", "period_start", "period_end", "n_days", "valid_day_share", "n_stations", "area_km2", "sy", "net_balance_mm",
            "obs_depth_start_cm", "obs_depth_end_cm", "obs_change_cm", "storage_change_mm", "deficit_mm", "deficit_mm_low",
-           "deficit_mm_high", "deficit_m3", "deficit_months", "evaporation_source", "e_wapor_covers_period", "water_table_source", "method"]
+           "deficit_mm_high", "deficit_m3", "deficit_months", "evaporation_source", "e_wapor_covers_period", "water_table_source", "dz_assumed_cm",
+           "method"]
 
 
 def _deficit(net_mm: float, dz_cm: float, sy: float) -> float:
     return float(max(0.0, -net_mm - sy * dz_cm * 10.0))
+
+
+def assumed_dz(c: dict) -> tuple[float, list[float]] | None:
+    """(central dz, [low, high]) in cm for a KHG without readings, from the config; None when the config asks for stations."""
+    v, band = c.get("dz_no_obs_cm"), c.get("dz_no_obs_band_cm")
+    if v is None:
+        return None
+    if v == "observed":
+        obs = list(OBSERVED_DZ_CM.values())
+        v, band = float(np.median(obs)), band or [min(obs), max(obs)]
+    v = float(v)
+    lo, hi = (float(x) for x in (band or [v, v]))
+    if not lo <= v <= hi:
+        raise ValueError(f"dz_no_obs_cm {v:g} lies outside dz_no_obs_band_cm [{lo:g}, {hi:g}]")
+    return v, [lo, hi]
+
+
+def is_assumed(row) -> bool:
+    """True for a neraca_khg.csv row whose water-table change was assumed (files written before the column existed: observed)."""
+    src = row.get("water_table_source") if hasattr(row, "get") else None
+    return isinstance(src, str) and src.startswith("assumed")
 
 
 def khg_deficit(forcing: pd.DataFrame, obs: pd.DataFrame, area_km2: float, khg_id: str, cfg: dict | None = None) -> dict:
@@ -62,34 +93,40 @@ def khg_deficit(forcing: pd.DataFrame, obs: pd.DataFrame, area_km2: float, khg_i
     net = float((wv["P_era5_mm"] - wv["E_era5_mm"]).sum())
 
     o = obs.reindex(w.index) if obs is not None else pd.DataFrame(index=w.index)
+    readings = bool(o.notna().any().any()) if o.shape[1] else False
     cover = o.notna().mean()
     o = o.loc[:, cover >= float(c["min_station_coverage"])]
     mean_o = o.mean(axis=1).dropna()
     k = int(c["edge_days"])
     has_obs = len(mean_o) >= 2 * k
+    dzs, band = None, None
     if has_obs:
         z0, z1 = float(mean_o.iloc[:k].mean()), float(mean_o.iloc[-k:].mean())
         dz = z1 - z0
-    elif c["require_obs"]:
-        raise ValueError("too few observed days to get the water table change over the window")
-    else:                                   # no TMAT: an assumed drop, so the storage term Sy * dz is still subtracted
+    else:
+        a = assumed_dz(c)
+        if readings or a is None:
+            raise ValueError("too few observed days to get the water table change over the window"
+                             + ("" if readings else "; for a KHG without TMAT stations set deficit.dz_no_obs_cm (a drop in cm, or `observed`)"))
         z0 = z1 = float("nan")
-        dz = float(c["dz_no_obs_cm"])
+        dz, band = a                        # no TMAT: an assumed drop, so the storage term Sy * dz is still subtracted
+        dzs = sorted({dz, *band})
 
     sy = float(c["sy"])
-    variants = [_deficit(net, dz, s) for s in {sy, *map(float, c["sy_band"])}]
+    sys_ = {sy, *map(float, c["sy_band"])}
+    variants = [_deficit(net, d, s) for s in sys_ for d in (dzs or [dz])]
     wapor_ok = "E_wapor_mm" in w and bool(w["E_wapor_mm"].notna().all()) and bool(valid.all())
     if wapor_ok and c["wapor_bound"]:
         net_w = float((w["P_era5_mm"] - w["E_wapor_mm"]).sum())
-        variants += [_deficit(net_w, dz, s) for s in {sy, *map(float, c["sy_band"])}]
+        variants += [_deficit(net_w, d, s) for s in sys_ for d in (dzs or [dz])]
     central = _deficit(net, dz, sy)
     month_net = (wv["P_era5_mm"] - wv["E_era5_mm"]).groupby(wv.index.month).sum()
     return {"khg_id": str(khg_id), "period_start": start.date().isoformat(), "period_end": last.date().isoformat(),
             "n_days": int(valid.sum()), "valid_day_share": float(valid.mean()), "n_stations": int(o.shape[1]) if has_obs else 0,
             "area_km2": float(area_km2), "sy": sy, "net_balance_mm": net, "obs_depth_start_cm": z0, "obs_depth_end_cm": z1,
-            "obs_change_cm": dz, "storage_change_mm": sy * dz * 10.0, "deficit_mm": central, "deficit_mm_low": float(min(variants)),
+            "obs_change_cm": dz if has_obs else float("nan"), "storage_change_mm": sy * dz * 10.0, "deficit_mm": central, "deficit_mm_low": float(min(variants)),
             "deficit_mm_high": float(max(variants)), "deficit_m3": central / 1000.0 * area_km2 * 1e6,
             "deficit_months": int((month_net < 0).sum()), "evaporation_source": "ERA5", "e_wapor_covers_period": wapor_ok,
-            "water_table_source": "stations" if has_obs else f"assumed (dz = {dz:g} cm)",
+            "water_table_source": "stations" if has_obs else "assumed", "dz_assumed_cm": float("nan") if has_obs else dz,
             "method": "max(0, -sum(P-E) - Sy*dz_obs); ERA5 P and E; Sy 0.15, band 0.10-0.20" + ("; WaPOR bound" if c["wapor_bound"] else "")
-                      + ("" if has_obs else f"; no TMAT stations: dz assumed {dz:g} cm")}
+                      + ("" if has_obs else f"; no TMAT stations: dz assumed {dz:g} cm, band {band[0]:g}-{band[1]:g} cm")}

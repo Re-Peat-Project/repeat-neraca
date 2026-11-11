@@ -80,7 +80,7 @@ def main(argv=None):
     pd.DataFrame([dr], columns=DEF.COLUMNS).to_csv(out / "neraca_khg.csv", index=False, float_format="%.3f")
     print(f"deficit {dr['period_start']}..{dr['period_end']}: {dr['deficit_mm']:.0f} mm ({dr['deficit_mm_low']:.0f}-{dr['deficit_mm_high']:.0f}), "
           f"{dr['deficit_m3'] / 1e6:,.0f} million m3 -> neraca_khg.csv"
-          + ("" if dr["water_table_source"] == "stations" else f"  [no TMAT stations: {dr['water_table_source']}]"))
+          + ("" if dr["water_table_source"] == "stations" else f"  [no TMAT stations: dz assumed {dr['dz_assumed_cm']:g} cm, not observed]"))
     table = PeatTable.named(a.peat_table)
     (out / "registry_snapshot.json").write_text(json.dumps(reg.snapshot(), indent=2), encoding="utf-8")
 
