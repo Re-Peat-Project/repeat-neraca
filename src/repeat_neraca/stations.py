@@ -73,6 +73,9 @@ def main(argv=None):
     daily.columns = ["date", "station_id", "depth_cm"]
     daily.to_csv(out / "stations_daily.csv", index=False, float_format="%.2f")
     print(f"wrote {out / 'stations.csv'} ({len(meta)} stations), stations_daily.csv ({len(daily)} readings)")
+    if not len(meta):
+        print("warning: no SiTMAT station inside the KHG. The deficit (repeat-neraca-run) stops unless the config sets "
+              "deficit.dz_no_obs_cm (an assumed drop in cm, or `observed`)")
 
 
 if __name__ == "__main__":

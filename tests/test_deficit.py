@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from repeat_neraca.deficit import khg_deficit
+from repeat_neraca.deficit import is_assumed, khg_deficit, observed_drops
 
 
 def _case(net=-1.0, n=100, z0=40.0, z1=50.0, wapor=None):
@@ -60,3 +60,79 @@ def test_stops_without_forcing_in_the_window():
     f["P_era5_mm"] = np.nan
     with pytest.raises(ValueError):
         khg_deficit(f, obs, 10.0, "X")
+
+
+def test_without_tmat_it_stops_unless_the_config_assumes_a_drop():
+    f, obs = _case()
+    for o in (None, obs.iloc[:, :0], obs * np.nan):                     # no frame, no station, stations without readings
+        with pytest.raises(ValueError, match="dz_no_obs_cm"):
+            khg_deficit(f, o, 100.0, "X")
+
+
+def test_without_tmat_an_assumed_drop_is_subtracted_and_marked():
+    f, obs = _case()                                                    # -100 mm; with stations (dz 10 cm) the deficit is 85 mm
+    for o in (None, obs.iloc[:, :0], obs * np.nan):
+        r = khg_deficit(f, o, 100.0, "X", {"dz_no_obs_cm": 10.0})       # 0.15 * 10 * 10 = 15 mm of storage
+        assert r["deficit_mm"] == pytest.approx(85.0) and r["storage_change_mm"] == pytest.approx(15.0)
+        assert r["deficit_mm_low"] == pytest.approx(80.0) and r["deficit_mm_high"] == pytest.approx(90.0)     # Sy band only
+        assert r["n_stations"] == 0 and r["water_table_source"] == "assumed" and r["dz_assumed_cm"] == 10.0
+        assert np.isnan(r["obs_change_cm"]) and np.isnan(r["obs_depth_start_cm"])
+        assert is_assumed(r)
+    r = khg_deficit(f, obs, 100.0, "X", {"dz_no_obs_cm": 10.0})         # stations win over the assumption
+    assert r["water_table_source"] == "stations" and np.isnan(r["dz_assumed_cm"]) and not is_assumed(r)
+
+
+def _khg_tree(root, rows):
+    for name, net, dz, src in rows:
+        d = root / name / "03_neraca" / "runs" / "deficit"
+        d.mkdir(parents=True)
+        r = {"net_balance_mm": net, "obs_change_cm": dz}
+        if src is not None:
+            r["water_table_source"] = src
+        pd.DataFrame([r]).to_csv(d / "neraca_khg.csv", index=False)
+    return root
+
+
+def test_observed_drops_keep_dry_station_windows_only(tmp_path):
+    root = _khg_tree(tmp_path, [("a", -200.0, 4.0, "stations"), ("b", -100.0, 20.0, None),       # older file without the column
+                                ("c", 50.0, 35.0, "stations"),                                    # wet window: left out
+                                ("d", -300.0, float("nan"), "assumed")])                          # assumed: left out
+    assert observed_drops(root) == {"a": 4.0, "b": 20.0}
+
+
+def test_the_observed_band_runs_with_the_sy_band(tmp_path):
+    f, _ = _case()
+    root = _khg_tree(tmp_path, [("a", -200.0, 2.0, "stations"), ("b", -100.0, 10.0, "stations"), ("c", -50.0, 22.0, "stations")])
+    r = khg_deficit(f, None, 100.0, "X", {"dz_no_obs_cm": "observed", "dz_observed_root": str(root)})
+    assert r["dz_assumed_cm"] == pytest.approx(10.0)
+    assert r["deficit_mm"] == pytest.approx(100 - 0.15 * 10.0 * 10)
+    assert r["deficit_mm_low"] == pytest.approx(100 - 0.20 * 22.0 * 10)               # deepest drop, largest Sy
+    assert r["deficit_mm_high"] == pytest.approx(100 - 0.10 * 2.0 * 10)               # shallowest drop, smallest Sy
+    assert "from 3 KHG with stations" in r["method"]
+    r = khg_deficit(f, None, 100.0, "X", {"dz_no_obs_cm": 5.0, "dz_no_obs_band_cm": [2.0, 20.0]})
+    assert r["deficit_mm_low"] == pytest.approx(60.0) and r["deficit_mm_high"] == pytest.approx(98.0)
+    with pytest.raises(ValueError, match="outside"):
+        khg_deficit(f, None, 100.0, "X", {"dz_no_obs_cm": 30.0, "dz_no_obs_band_cm": [2.0, 20.0]})
+    with pytest.raises(ValueError, match="no station deficit"):
+        khg_deficit(f, None, 100.0, "X", {"dz_no_obs_cm": "observed", "dz_observed_root": str(tmp_path / "empty")})
+
+
+def test_too_few_readings_still_stops_even_with_an_assumed_drop():
+    f, obs = _case()
+    sparse = obs.copy()
+    sparse.loc[sparse.index.day != 1] = np.nan                          # readings exist, but under the coverage threshold
+    with pytest.raises(ValueError, match="too few observed days"):
+        khg_deficit(f, sparse, 100.0, "X", {"dz_no_obs_cm": 10.0})
+
+
+def test_files_without_the_column_count_as_observed():
+    assert not is_assumed(pd.Series({"deficit_mm": 100.0}))
+    assert is_assumed(pd.Series({"water_table_source": "assumed"}))
+
+
+def test_config_mistakes_give_a_clear_message():
+    f, _ = _case()
+    with pytest.raises(ValueError, match="number of cm or `observed`"):
+        khg_deficit(f, None, 100.0, "X", {"dz_no_obs_cm": "observe"})          # typo
+    with pytest.raises(ValueError, match=r"\[low, high\]"):
+        khg_deficit(f, None, 100.0, "X", {"dz_no_obs_cm": 5.0, "dz_no_obs_band_cm": [2.0]})

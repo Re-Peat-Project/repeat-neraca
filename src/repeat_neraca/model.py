@@ -29,6 +29,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from repeat_neraca import deficit as DEF
 from repeat_neraca.groundwater import PEAT_TABLES, PeatTable
 from repeat_neraca.groundwater import fieldcheck as FC
 from repeat_neraca.groundwater import fieldobs as FO
@@ -461,6 +462,9 @@ def main(argv=None):
             if not dfile0.exists():
                 raise SystemExit(f"--supply-cap deficit needs {dfile0} (repeat-neraca-run)")
             dk0 = pd.read_csv(dfile0).iloc[0]
+            if DEF.is_assumed(dk0):
+                raise SystemExit(f"--supply-cap deficit needs a deficit from stations; {dfile0} assumes the water-table drop "
+                                 f"({dk0.dz_assumed_cm:g} cm, no TMAT): use --supply-cap climate or a number")
             cap_mm, cap_days = float(dk0.deficit_mm), np.asarray((dates >= pd.Timestamp(dk0.period_start)) & (dates <= pd.Timestamp(dk0.period_end)))
         elif a.supply_cap == "climate":
             from repeat_neraca.supply_rule import climate_cap
@@ -600,7 +604,7 @@ def main(argv=None):
         if dfile.exists():
             dk = pd.read_csv(dfile).iloc[0]
             sel = (dates >= pd.Timestamp(dk.period_start)) & (dates <= pd.Timestamp(dk.period_end))
-            if sel.sum() == 0:
+            if sel.sum() == 0 or DEF.is_assumed(dk):          # an assumed drop is no measured supply to check the model against
                 dk = None
         if dfile.exists() and dk is not None:
             st_scores["supply_check"] = {"period": f"{dk.period_start} to {dk.period_end}", "station_deficit_mm": float(dk.deficit_mm),

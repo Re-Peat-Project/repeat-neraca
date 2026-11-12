@@ -18,28 +18,100 @@ Choices (agreed 2026-10-20):
            WaPOR is no longer a bound by default (`wapor_bound`): it runs 20-30 % below the eddy-covariance range, and the cached
            2026 values were superseded upstream for six dekads.
   band     deficit_mm_low and deficit_mm_high are the smallest and largest deficit over Sy 0.10, 0.15, 0.20 (and WaPOR if wapor_bound).
+  no TMAT  a KHG with no water-table reading in the window can still get a deficit, but only when its config asks for one: dz is
+           then assumed, not observed. `dz_no_obs_cm` is null by default, and the KHG stops as before. A number is the assumed drop
+           (cm); `observed` takes the median and range of the drops measured at the KHG with stations (`observed_drops`: every
+           `<root>/*/03_neraca/runs/deficit/neraca_khg.csv` from stations whose window had a negative P - E, read at run time; root
+           `dz_observed_root` in the config, else $REPEAT_KHG, else the workspace `_khg`). The 2026 deficit window is one dry season,
+           so the band covers one year. `dz_no_obs_band_cm` [low, high] sets or overrides the band. deficit_mm uses the central dz; deficit_mm_low and
+           deficit_mm_high run over the dz band and the Sy band together. Such a row has water_table_source "assumed", n_stations 0,
+           dz_assumed_cm filled and the observed columns (obs_depth_*, obs_change_cm) empty. A KHG whose stations have readings in the
+           window but too few for the change still stops (lower `min_station_coverage` instead): the assumption never replaces data
+           silently. Read the source before using the deficit as a measured value (`is_assumed`).
 """
 from __future__ import annotations
+
+import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 DEFAULTS = {"start": "06-01", "end": "10-31", "sy": 0.15, "sy_band": [0.10, 0.20], "edge_days": 7, "min_station_coverage": 0.5,
-            "wapor_bound": False}
+            "wapor_bound": False, "dz_no_obs_cm": None, "dz_no_obs_band_cm": None, "dz_observed_root": None}
 
 COLUMNS = ["khg_id", "period_start", "period_end", "n_days", "valid_day_share", "n_stations", "area_km2", "sy", "net_balance_mm",
            "obs_depth_start_cm", "obs_depth_end_cm", "obs_change_cm", "storage_change_mm", "deficit_mm", "deficit_mm_low",
-           "deficit_mm_high", "deficit_m3", "deficit_months", "evaporation_source", "e_wapor_covers_period", "method"]
+           "deficit_mm_high", "deficit_m3", "deficit_months", "evaporation_source", "e_wapor_covers_period", "water_table_source", "dz_assumed_cm",
+           "method"]
 
 
 def _deficit(net_mm: float, dz_cm: float, sy: float) -> float:
     return float(max(0.0, -net_mm - sy * dz_cm * 10.0))
 
 
+def khg_root(c: dict | None = None) -> Path:
+    """The folder of the per-KHG work folders: config `dz_observed_root`, else $REPEAT_KHG, else the workspace `_khg`."""
+    r = (c or {}).get("dz_observed_root") or os.environ.get("REPEAT_KHG")
+    if r:
+        return Path(r)
+    try:
+        from repeat_common import khg as K
+    except ImportError:
+        raise ValueError("dz_no_obs_cm is `observed`: set REPEAT_KHG or deficit.dz_observed_root to the _khg folder") from None
+    return K.root()
+
+
+def observed_drops(root: str | Path) -> dict[str, float]:
+    """Water-table drop over the deficit window (cm, positive = deeper) per KHG folder, from <root>/*/03_neraca/runs/deficit/neraca_khg.csv.
+
+    Kept: rows from stations (not assumed) with an observed change, over a window whose P - E was negative (a dry window, the case a
+    KHG without stations is assumed for)."""
+    out = {}
+    for f in sorted(Path(root).glob("*/03_neraca/runs/deficit/neraca_khg.csv")):
+        r = pd.read_csv(f).iloc[0]
+        if not is_assumed(r) and np.isfinite(r["obs_change_cm"]) and r["net_balance_mm"] < 0:
+            out[f.parents[3].name] = float(r["obs_change_cm"])
+    return out
+
+
+def assumed_dz(c: dict) -> tuple[float, list[float], str] | None:
+    """(central dz, [low, high], note) in cm for a KHG without readings, from the config; None when the config asks for stations."""
+    v, band = c.get("dz_no_obs_cm"), c.get("dz_no_obs_band_cm")
+    if v is None:
+        return None
+    note = ""
+    if v == "observed":
+        root = khg_root(c)
+        drops = observed_drops(root)
+        if not drops:
+            raise ValueError(f"dz_no_obs_cm is `observed` but no station deficit with a dry window was found under {root}")
+        obs = list(drops.values())
+        v, band = float(np.median(obs)), band or [min(obs), max(obs)]
+        note = f", from {len(drops)} KHG with stations (" + ", ".join(f"{k} {d:.1f}" for k, d in drops.items()) + ")"
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        raise ValueError(f"dz_no_obs_cm must be a number of cm or `observed`, got {v!r}") from None
+    if band is not None and (not isinstance(band, (list, tuple)) or len(band) != 2):
+        raise ValueError(f"dz_no_obs_band_cm must be [low, high] in cm, got {band!r}")
+    lo, hi = (float(x) for x in (band or [v, v]))
+    if not lo <= v <= hi:
+        raise ValueError(f"dz_no_obs_cm {v:g} lies outside dz_no_obs_band_cm [{lo:g}, {hi:g}]")
+    return v, [lo, hi], note
+
+
+def is_assumed(row) -> bool:
+    """True for a neraca_khg.csv row whose water-table change was assumed (files written before the column existed: observed)."""
+    src = row.get("water_table_source") if hasattr(row, "get") else None
+    return isinstance(src, str) and src.startswith("assumed")
+
+
 def khg_deficit(forcing: pd.DataFrame, obs: pd.DataFrame, area_km2: float, khg_id: str, cfg: dict | None = None) -> dict:
     """One row of neraca_khg.csv (see COLUMNS).
 
-    forcing: date, P_era5_mm, E_era5_mm, optionally E_wapor_mm. obs: stations in columns, dates in the index, depth in cm (positive down).
+    forcing: date, P_era5_mm, E_era5_mm, optionally E_wapor_mm. obs: stations in columns, dates in the index, depth in cm (positive down);
+    None or an empty frame when the KHG has no TMAT station (then dz = dz_no_obs_cm, see the module notes).
     """
     c = {**DEFAULTS, **(cfg or {})}
     f = forcing.copy()
@@ -56,28 +128,41 @@ def khg_deficit(forcing: pd.DataFrame, obs: pd.DataFrame, area_km2: float, khg_i
     wv = w[valid]
     net = float((wv["P_era5_mm"] - wv["E_era5_mm"]).sum())
 
-    o = obs.reindex(w.index)
+    o = obs.reindex(w.index) if obs is not None else pd.DataFrame(index=w.index)
+    readings = bool(o.notna().any().any()) if o.shape[1] else False
     cover = o.notna().mean()
     o = o.loc[:, cover >= float(c["min_station_coverage"])]
     mean_o = o.mean(axis=1).dropna()
-    if len(mean_o) < 2 * int(c["edge_days"]):
-        raise ValueError("too few observed days to get the water table change over the window")
     k = int(c["edge_days"])
-    z0, z1 = float(mean_o.iloc[:k].mean()), float(mean_o.iloc[-k:].mean())
-    dz = z1 - z0
+    has_obs = len(mean_o) >= 2 * k
+    dzs, band = None, None
+    if has_obs:
+        z0, z1 = float(mean_o.iloc[:k].mean()), float(mean_o.iloc[-k:].mean())
+        dz = z1 - z0
+    else:
+        a = assumed_dz(c)
+        if readings or a is None:
+            raise ValueError("too few observed days to get the water table change over the window"
+                             + ("" if readings else "; for a KHG without TMAT stations set deficit.dz_no_obs_cm (a drop in cm, or `observed`)"))
+        z0 = z1 = float("nan")
+        dz, band, note = a                  # no TMAT: an assumed drop, so the storage term Sy * dz is still subtracted
+        dzs = sorted({dz, *band})
 
     sy = float(c["sy"])
-    variants = [_deficit(net, dz, s) for s in {sy, *map(float, c["sy_band"])}]
+    sys_ = {sy, *map(float, c["sy_band"])}
+    variants = [_deficit(net, d, s) for s in sys_ for d in (dzs or [dz])]
     wapor_ok = "E_wapor_mm" in w and bool(w["E_wapor_mm"].notna().all()) and bool(valid.all())
     if wapor_ok and c["wapor_bound"]:
         net_w = float((w["P_era5_mm"] - w["E_wapor_mm"]).sum())
-        variants += [_deficit(net_w, dz, s) for s in {sy, *map(float, c["sy_band"])}]
+        variants += [_deficit(net_w, d, s) for s in sys_ for d in (dzs or [dz])]
     central = _deficit(net, dz, sy)
     month_net = (wv["P_era5_mm"] - wv["E_era5_mm"]).groupby(wv.index.month).sum()
     return {"khg_id": str(khg_id), "period_start": start.date().isoformat(), "period_end": last.date().isoformat(),
-            "n_days": int(valid.sum()), "valid_day_share": float(valid.mean()), "n_stations": int(o.shape[1]),
+            "n_days": int(valid.sum()), "valid_day_share": float(valid.mean()), "n_stations": int(o.shape[1]) if has_obs else 0,
             "area_km2": float(area_km2), "sy": sy, "net_balance_mm": net, "obs_depth_start_cm": z0, "obs_depth_end_cm": z1,
-            "obs_change_cm": dz, "storage_change_mm": sy * dz * 10.0, "deficit_mm": central, "deficit_mm_low": float(min(variants)),
+            "obs_change_cm": dz if has_obs else float("nan"), "storage_change_mm": sy * dz * 10.0, "deficit_mm": central, "deficit_mm_low": float(min(variants)),
             "deficit_mm_high": float(max(variants)), "deficit_m3": central / 1000.0 * area_km2 * 1e6,
             "deficit_months": int((month_net < 0).sum()), "evaporation_source": "ERA5", "e_wapor_covers_period": wapor_ok,
-            "method": "max(0, -sum(P-E) - Sy*dz_obs); ERA5 P and E; Sy 0.15, band 0.10-0.20" + ("; WaPOR bound" if c["wapor_bound"] else "")}
+            "water_table_source": "stations" if has_obs else "assumed", "dz_assumed_cm": float("nan") if has_obs else dz,
+            "method": "max(0, -sum(P-E) - Sy*dz_obs); ERA5 P and E; Sy 0.15, band 0.10-0.20" + ("; WaPOR bound" if c["wapor_bound"] else "")
+                      + ("" if has_obs else f"; no TMAT stations: dz assumed {dz:g} cm, band {band[0]:g}-{band[1]:g} cm{note}")}

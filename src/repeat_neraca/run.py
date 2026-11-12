@@ -73,12 +73,14 @@ def main(argv=None):
     et_m = (f[cfg.get("evaporation", "E_era5_mm")] / 1000.0).values
     net_m = rain_m - et_m
     et_fn = None if a.et_stress == "none" else lumped.et_factor(*((-0.70, -1.82) if a.et_stress == "natural" else (reg["et_stress_start"], reg["et_stress_end"])))
-    obs = V.observed_wide(inputs_dir, dates)
+    has_station_file = (inputs_dir / "stations_daily.csv").exists()
+    obs = V.observed_wide(inputs_dir, dates) if has_station_file else pd.DataFrame(index=dates)   # no TMAT: the deficit takes the assumed dz
     khg = IN.load(cfg, res)
     dr = DEF.khg_deficit(f, obs, khg.area_km2, cfg.get("khg_id", cfg["name"]), cfg.get("deficit"))
     pd.DataFrame([dr], columns=DEF.COLUMNS).to_csv(out / "neraca_khg.csv", index=False, float_format="%.3f")
     print(f"deficit {dr['period_start']}..{dr['period_end']}: {dr['deficit_mm']:.0f} mm ({dr['deficit_mm_low']:.0f}-{dr['deficit_mm_high']:.0f}), "
-          f"{dr['deficit_m3'] / 1e6:,.0f} million m3 -> neraca_khg.csv")
+          f"{dr['deficit_m3'] / 1e6:,.0f} million m3 -> neraca_khg.csv"
+          + ("" if dr["water_table_source"] == "stations" else f"  [no TMAT stations: dz assumed {dr['dz_assumed_cm']:g} cm, not observed]"))
     table = PeatTable.named(a.peat_table)
     (out / "registry_snapshot.json").write_text(json.dumps(reg.snapshot(), indent=2), encoding="utf-8")
 
