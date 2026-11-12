@@ -22,7 +22,7 @@ Two outputs, at two levels, and the model that is to take over from them:
    deficit = max(0, -Σ(P - E) - Sy × Δz_obs)        1 June to 31 October 2026, Sy 0.15 (0.10-0.20)
    ```
 
-   A KHG without SiTMAT stations stops here unless its `neraca.yaml` assumes the drop: `deficit: {dz_no_obs_cm: observed}` takes the median (9.35 cm) and range (2.8-22.2 cm) of the drops measured at the KHG with stations, or give a number in cm and optionally `dz_no_obs_band_cm: [low, high]`. The row is marked `water_table_source: assumed` with `dz_assumed_cm`, the observed columns stay empty, and `deficit_mm_low`/`_high` run over the Δz band and the Sy band. The groundwater model does not take an assumed deficit as its supply cap or its supply check.
+   A KHG without SiTMAT stations stops here unless its `neraca.yaml` assumes the drop: `deficit: {dz_no_obs_cm: observed}` takes the median and range of the drops measured at the KHG with stations whose window had a negative P − E, read at run time from their `03_neraca/runs/deficit/neraca_khg.csv` under `$REPEAT_KHG` (one dry season, 2026), or give a number in cm and optionally `dz_no_obs_band_cm: [low, high]`. The row is marked `water_table_source: assumed` with `dz_assumed_cm`, the observed columns stay empty, and `deficit_mm_low`/`_high` run over the Δz band and the Sy band. The groundwater model does not take an assumed deficit as its supply cap or its supply check.
 
 What was added to the 2021 Earth Engine method, and why each choice was made (rain as KHG mean, MOD16 central, the stability test, P − ET as the ranking signal, ERA5 for the deficit): method report, sections 2 and 5.
 

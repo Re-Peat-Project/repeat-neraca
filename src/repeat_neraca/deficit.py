@@ -20,8 +20,10 @@ Choices (agreed 2026-10-20):
   band     deficit_mm_low and deficit_mm_high are the smallest and largest deficit over Sy 0.10, 0.15, 0.20 (and WaPOR if wapor_bound).
   no TMAT  a KHG with no water-table reading in the window can still get a deficit, but only when its config asks for one: dz is
            then assumed, not observed. `dz_no_obs_cm` is null by default, and the KHG stops as before. A number is the assumed drop
-           (cm); `observed` takes the drops measured at the KHG with stations (OBSERVED_DZ_CM: median 9.35 cm, band 2.8 to 22.2 cm),
-           and `dz_no_obs_band_cm` [low, high] sets or overrides the band. deficit_mm uses the central dz; deficit_mm_low and
+           (cm); `observed` takes the median and range of the drops measured at the KHG with stations (`observed_drops`: every
+           `<root>/*/03_neraca/runs/deficit/neraca_khg.csv` from stations whose window had a negative P - E, read at run time; root
+           `dz_observed_root` in the config, else $REPEAT_KHG, else the workspace `_khg`). The 2026 deficit window is one dry season,
+           so the band covers one year. `dz_no_obs_band_cm` [low, high] sets or overrides the band. deficit_mm uses the central dz; deficit_mm_low and
            deficit_mm_high run over the dz band and the Sy band together. Such a row has water_table_source "assumed", n_stations 0,
            dz_assumed_cm filled and the observed columns (obs_depth_*, obs_change_cm) empty. A KHG whose stations have readings in the
            window but too few for the change still stops (lower `min_station_coverage` instead): the assumption never replaces data
@@ -29,16 +31,14 @@ Choices (agreed 2026-10-20):
 """
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
 DEFAULTS = {"start": "06-01", "end": "10-31", "sy": 0.15, "sy_band": [0.10, 0.20], "edge_days": 7, "min_station_coverage": 0.5,
-            "wapor_bound": False, "dz_no_obs_cm": None, "dz_no_obs_band_cm": None}
-
-# Water-table drop over the deficit window (cm, positive = deeper) at the KHG with SiTMAT stations, 2026 (runs/deficit/neraca_khg.csv,
-# collected 2026-11-10). `dz_no_obs_cm: observed` takes their median and range for a KHG without stations.
-OBSERVED_DZ_CM = {"Air Hitam Laut-Buntu Kecil": 2.8, "Mendahara-Batanghari": 22.2, "Sugihan-Lumpur": 11.0, "Pungurbesar-Kapuas": 20.5,
-                  "Kapuas-Barito": 3.7, "Kahayan-Sebangau": 7.7}
+            "wapor_bound": False, "dz_no_obs_cm": None, "dz_no_obs_band_cm": None, "dz_observed_root": None}
 
 COLUMNS = ["khg_id", "period_start", "period_end", "n_days", "valid_day_share", "n_stations", "area_km2", "sy", "net_balance_mm",
            "obs_depth_start_cm", "obs_depth_end_cm", "obs_change_cm", "storage_change_mm", "deficit_mm", "deficit_mm_low",
@@ -50,16 +50,45 @@ def _deficit(net_mm: float, dz_cm: float, sy: float) -> float:
     return float(max(0.0, -net_mm - sy * dz_cm * 10.0))
 
 
-def assumed_dz(c: dict) -> tuple[float, list[float]] | None:
-    """(central dz, [low, high]) in cm for a KHG without readings, from the config; None when the config asks for stations."""
+def khg_root(c: dict | None = None) -> Path:
+    """The folder of the per-KHG work folders: config `dz_observed_root`, else $REPEAT_KHG, else the workspace `_khg`."""
+    r = (c or {}).get("dz_observed_root") or os.environ.get("REPEAT_KHG")
+    if r:
+        return Path(r)
+    try:
+        from repeat_common import khg as K
+    except ImportError:
+        raise ValueError("dz_no_obs_cm is `observed`: set REPEAT_KHG or deficit.dz_observed_root to the _khg folder") from None
+    return K.root()
+
+
+def observed_drops(root: str | Path) -> dict[str, float]:
+    """Water-table drop over the deficit window (cm, positive = deeper) per KHG folder, from <root>/*/03_neraca/runs/deficit/neraca_khg.csv.
+
+    Kept: rows from stations (not assumed) with an observed change, over a window whose P - E was negative (a dry window, the case a
+    KHG without stations is assumed for)."""
+    out = {}
+    for f in sorted(Path(root).glob("*/03_neraca/runs/deficit/neraca_khg.csv")):
+        r = pd.read_csv(f).iloc[0]
+        if not is_assumed(r) and np.isfinite(r["obs_change_cm"]) and r["net_balance_mm"] < 0:
+            out[f.parents[3].name] = float(r["obs_change_cm"])
+    return out
+
+
+def assumed_dz(c: dict) -> tuple[float, list[float], str] | None:
+    """(central dz, [low, high], note) in cm for a KHG without readings, from the config; None when the config asks for stations."""
     v, band = c.get("dz_no_obs_cm"), c.get("dz_no_obs_band_cm")
     if v is None:
         return None
+    note = ""
     if v == "observed":
-        obs = list(OBSERVED_DZ_CM.values())
-        if not obs:
-            raise ValueError("dz_no_obs_cm is `observed` but OBSERVED_DZ_CM holds no measured drop")
+        root = khg_root(c)
+        drops = observed_drops(root)
+        if not drops:
+            raise ValueError(f"dz_no_obs_cm is `observed` but no station deficit with a dry window was found under {root}")
+        obs = list(drops.values())
         v, band = float(np.median(obs)), band or [min(obs), max(obs)]
+        note = f", from {len(drops)} KHG with stations (" + ", ".join(f"{k} {d:.1f}" for k, d in drops.items()) + ")"
     try:
         v = float(v)
     except (TypeError, ValueError):
@@ -69,7 +98,7 @@ def assumed_dz(c: dict) -> tuple[float, list[float]] | None:
     lo, hi = (float(x) for x in (band or [v, v]))
     if not lo <= v <= hi:
         raise ValueError(f"dz_no_obs_cm {v:g} lies outside dz_no_obs_band_cm [{lo:g}, {hi:g}]")
-    return v, [lo, hi]
+    return v, [lo, hi], note
 
 
 def is_assumed(row) -> bool:
@@ -116,7 +145,7 @@ def khg_deficit(forcing: pd.DataFrame, obs: pd.DataFrame, area_km2: float, khg_i
             raise ValueError("too few observed days to get the water table change over the window"
                              + ("" if readings else "; for a KHG without TMAT stations set deficit.dz_no_obs_cm (a drop in cm, or `observed`)"))
         z0 = z1 = float("nan")
-        dz, band = a                        # no TMAT: an assumed drop, so the storage term Sy * dz is still subtracted
+        dz, band, note = a                  # no TMAT: an assumed drop, so the storage term Sy * dz is still subtracted
         dzs = sorted({dz, *band})
 
     sy = float(c["sy"])
@@ -136,4 +165,4 @@ def khg_deficit(forcing: pd.DataFrame, obs: pd.DataFrame, area_km2: float, khg_i
             "deficit_months": int((month_net < 0).sum()), "evaporation_source": "ERA5", "e_wapor_covers_period": wapor_ok,
             "water_table_source": "stations" if has_obs else "assumed", "dz_assumed_cm": float("nan") if has_obs else dz,
             "method": "max(0, -sum(P-E) - Sy*dz_obs); ERA5 P and E; Sy 0.15, band 0.10-0.20" + ("; WaPOR bound" if c["wapor_bound"] else "")
-                      + ("" if has_obs else f"; no TMAT stations: dz assumed {dz:g} cm, band {band[0]:g}-{band[1]:g} cm")}
+                      + ("" if has_obs else f"; no TMAT stations: dz assumed {dz:g} cm, band {band[0]:g}-{band[1]:g} cm{note}")}
